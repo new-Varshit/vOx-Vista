@@ -1,0 +1,11 @@
+# Ignore environment files in both backend and frontend
+backend/.env
+frontend/.env
+
+# Ignore node_modules directories
+backend/node_modules/
+frontend/node_modules/
+
+# Other common patterns to ignore
+# .DS_Store  # macOS
+# Thumbs.db  # Windows
