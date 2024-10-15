@@ -9,16 +9,20 @@ import SideProfileSection from '../Components/SideProfileSection';
 import ProfileCard from '../Components/profileCard';
 import NewChatSearch from '../Components/NewChatSearch';
 import { logIn, logOut } from '../store/authSlice';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { faTimes } from '@fortawesome/free-solid-svg-icons';
+
 
 function MainPage() {
 
     const navigate = useNavigate();
     const dispatch = useDispatch();
-   console.log('mainpage');
+    console.log('mainpage');
 
     const [isSideProfileCard, setIsSideProfileCard] = useState(false);
     const [isProfileCardVisible, setisProfileCardVisible] = useState(false);
     const [isNewChatCardVisible, setIsNewChatCardVisible] = useState(false);
+    const [isDelOptCardVisible, setIsDelOptCardVisible] = useState(false);
     const [profileData, setProfileData] = useState('');
 
 
@@ -29,9 +33,13 @@ function MainPage() {
     const sideProfileCard = () => {
         setIsSideProfileCard(!isSideProfileCard);
     }
-    
-    const newChatCard = () =>{
+
+    const newChatCard = () => {
         setIsNewChatCardVisible(!isNewChatCardVisible);
+    }
+
+    const delOptCardToggle = () => {
+        setIsDelOptCardVisible(!isDelOptCardVisible);
     }
 
     const userLoggedOut = async () => {
@@ -108,13 +116,13 @@ function MainPage() {
                     </div>
 
                     <div className='flex-1 overflow-auto bg-gray-200 m-2 rounded-bl-2xl mt-0'>
-                        <ChatListing newChatCard={newChatCard}/>
+                        <ChatListing newChatCard={newChatCard} />
                     </div>
                 </div>
 
 
                 <div className={`${isSideProfileCard ? 'w-1/2' : 'w-3/4'}   h-full py-2`}>
-                    <ChatSection sideProfileCard={sideProfileCard} isSideProfileCard={isSideProfileCard} />
+                    <ChatSection sideProfileCard={sideProfileCard} isSideProfileCard={isSideProfileCard} delOptCardToggle={delOptCardToggle} />
                 </div>
 
 
@@ -129,7 +137,29 @@ function MainPage() {
 
 
                 {isNewChatCardVisible &&
-                    <NewChatSearch newChatCard={newChatCard}/>
+                    <NewChatSearch newChatCard={newChatCard} />
+                }
+
+                {isDelOptCardVisible &&
+                    (
+                        <div className='h-screen w-full z-10 absolute bg-transparent backdrop-blur-md flex justify-center items-center' onClick={() => setIsDelOptCardVisible(false)}>
+                            <div className='w-1/4 py-6 px-6 bg-gray-200 flex flex-col  rounded-xl'>
+                                <div className='flex justify-end'>
+                                    <FontAwesomeIcon icon={faTimes} className='text-lg text-anotherPrimary' />
+                                </div>
+                                <div className='flex flex-col gap-4 '>
+                                    <p className='text-2xl font-bold text-center'>
+                                        Delete Message ?
+                                    </p>
+                                    <div className='flex  flex-col gap-3 justify-evenly items-center'>
+                                        <button className='w-3/4 p-1 py-2 font-medium hover:bg-white hover:text-anotherPrimary bg-anotherPrimary text-white text-sm rounded-lg'>Delete for me</button>
+                                        <button className='w-3/4 p-1 py-2 font-medium hover:bg-white hover:text-anotherPrimary text-white bg-anotherPrimary text-sm rounded-lg'>Delete for everyone</button>
+                                    </div>
+                                </div>
+
+                            </div>
+                        </div>
+                    )
                 }
 
             </div>

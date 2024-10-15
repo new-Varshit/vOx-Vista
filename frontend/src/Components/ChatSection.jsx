@@ -11,7 +11,7 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faFaceSmile, faPaperPlane, } from '@fortawesome/free-regular-svg-icons';
 import { faPaperclip, faPhone, faVideo, faCheck, faCheckDouble, faEllipsisV, faTrash, faCopy, faCheckSquare } from '@fortawesome/free-solid-svg-icons';
 
-function ChatSection({ sideProfileCard, isSideProfileCard }) {
+function ChatSection({ sideProfileCard, isSideProfileCard, delOptCardToggle }) {
 
 
   const token = localStorage.getItem('token');
@@ -25,7 +25,7 @@ function ChatSection({ sideProfileCard, isSideProfileCard }) {
   const [messages, setMessages] = useState([]);
   const [sendMessage, setSendMessage] = useState('');
   const [onlineUsers, setOnlineUsers] = useState([]);
-  const [isDelSelCardVisible,setIsDelSelCardVisible] = useState(false);
+  const [isDelSelCardVisible, setIsDelSelCardVisible] = useState(false);
 
   const typingTimeoutRef = useRef(null);
   const lastMessageRef = useRef(null);
@@ -80,6 +80,9 @@ function ChatSection({ sideProfileCard, isSideProfileCard }) {
       }
     }
   }, [updateMessagesDelivered, currentChat]);
+
+
+
 
   useEffect(() => {
 
@@ -271,9 +274,9 @@ function ChatSection({ sideProfileCard, isSideProfileCard }) {
   }
 
 
- const handleDelSelCard = async(id)=>{
-        setIsDelSelCardVisible(prev => prev === id ? '' : id);
- }
+  const handleDelSelCard = async (id) => {
+    setIsDelSelCardVisible(prev => prev === id ? '' : id);
+  }
 
   return (
     <>
@@ -319,7 +322,7 @@ function ChatSection({ sideProfileCard, isSideProfileCard }) {
                   <div key={message._id} ref={index === messages.length - 1 ? lastMessageRef : null}>
                     {message?.sender?._id === currentChat._id
                       ? (
-                        <div className='flex gap-1' >
+                        <div className='flex gap-1 group' >
                           <img className='rounded-full w-7 h-7 flex' src={message?.sender?.profile?.profilePic} alt="error" />
                           <div className='bg-gray-200 text-gray-800 max-w-[70%] pt-2 pb-1 px-2 flex flex-col items-center justify-center rounded-md'>
                             <p className=' text-gray-800 text-sm  font-medium -mb-2 mr-12'>{message.content}</p>
@@ -327,28 +330,49 @@ function ChatSection({ sideProfileCard, isSideProfileCard }) {
                               <p className='text-[10px] '>{format(new Date(message?.createdAt), 'HH:mm')}</p>
                             </div>
                           </div>
+                          <div className={`bg-gray-200 w-[2%]  ${isDelSelCardVisible === message._id ? 'flex' : 'hidden group-hover:flex' }  justify-center items-center rounded-r-xl relative curson-pointer`} onClick={() => handleDelSelCard(message._id)}>
+                            {isDelSelCardVisible === message._id && (
+                              <div className={` bg-gray-200 absolute left-[120%] ${index === messages.length - 1 ? 'bottom-1/3' : 'top-1/3'}          rounded-lg p-3  flex flex-col gap-2 `}>
+                                <div className='flex gap-2' onClick={delOptCardToggle}>
+                                  <FontAwesomeIcon icon={faTrash} className='text-lg text-anotherPrimary' />
+                                  <button className='text-sm font-medium'>Delete</button>
+                                </div>
+                                <div className='flex gap-2'>
+                                  <FontAwesomeIcon icon={faCheckSquare} className='text-lg text-anotherPrimary' />
+                                  <button className='text-sm font-medium'>Select</button>
+                                </div>
+                                <div className='flex gap-2'>
+                                  <FontAwesomeIcon icon={faCopy} className='text-lg text-anotherPrimary' />
+                                  <button className='text-sm font-medium'>Copy</button>
+                                </div>
+                              </div>
+
+                            )};
+                            <FontAwesomeIcon icon={faEllipsisV} className='text-gray-700 text-xl cursor-pointer' />
+                          </div>
                         </div>
 
                       )
                       : (
-                        <div className=' flex gap-1 justify-end group' >
+                        <div className=' flex gap-1 justify-end group   ' >
 
-                          <div className='bg-gray-200 w-[2%] hidden group-hover:flex justify-center items-center rounded-l-xl relative curson-pointer' onClick={() => handleDelSelCard(message._id)}>
+                          <div className={`bg-gray-200 w-[2%] ${isDelSelCardVisible === message._id ? 'flex' : 'hidden group-hover:flex' } justify-center items-center rounded-l-xl relative curson-pointer`} onClick={() => handleDelSelCard(message._id)}>
                             {isDelSelCardVisible === message._id && (
-                              <div className=' bg-gray-200 absolute right-[120%] top-1/3 rounded-lg p-3  flex flex-col gap-2 '>
-                              <div className='flex gap-2'>
-                                <FontAwesomeIcon icon={faTrash} className='text-lg text-anotherPrimary' />
-                                <button className='text-sm font-medium'>Delete</button>
+                              <div className={` bg-gray-200 absolute right-[120%] ${index === messages.length - 1 ? 'bottom-1/3' : 'top-1/3'} rounded-lg p-3  flex flex-col gap-2 `}>
+                                <div className='flex gap-2' onClick={delOptCardToggle}>
+                                  <FontAwesomeIcon icon={faTrash} className='text-lg text-anotherPrimary' />
+                                  <button className='text-sm font-medium'>Delete</button>
+                                </div>
+                                <div className='flex gap-2'>
+                                  <FontAwesomeIcon icon={faCheckSquare} className='text-lg text-anotherPrimary' />
+                                  <button className='text-sm font-medium'>Select</button>
+                                </div>
+                                <div className='flex gap-2'>
+                                  <FontAwesomeIcon icon={faCopy} className='text-lg text-anotherPrimary' />
+                                  <button className='text-sm font-medium'>Copy</button>
+                                </div>
                               </div>
-                              <div className='flex gap-2'>
-                                <FontAwesomeIcon icon={faCheckSquare} className='text-lg text-anotherPrimary' />
-                                <button className='text-sm font-medium'>Select</button>
-                              </div>
-                              <div className='flex gap-2'>
-                                <FontAwesomeIcon icon={faCopy} className='text-lg text-anotherPrimary' />
-                                <button className='text-sm font-medium'>Copy</button>
-                              </div>
-                            </div>
+
                             )};
                             <FontAwesomeIcon icon={faEllipsisV} className='text-gray-700 text-xl cursor-pointer' />
                           </div>
@@ -362,7 +386,6 @@ function ChatSection({ sideProfileCard, isSideProfileCard }) {
 
                           <img className='rounded-full w-7 h-7 flex' src={message?.sender?.profile?.profilePic} alt="error" loading="lazy" />
                         </div>
-
                       )
                     }
                   </div>
@@ -406,6 +429,9 @@ function ChatSection({ sideProfileCard, isSideProfileCard }) {
 
 
       }
+      <div>
+
+      </div>
     </>
   )
 }
