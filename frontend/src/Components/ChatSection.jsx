@@ -9,7 +9,7 @@ import { useSelector } from 'react-redux';
 import { useNavigate } from 'react-router-dom'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faFaceSmile, faPaperPlane, } from '@fortawesome/free-regular-svg-icons';
-import { faPaperclip, faPhone, faVideo, faCheck, faCheckDouble } from '@fortawesome/free-solid-svg-icons';
+import { faPaperclip, faPhone, faVideo, faCheck, faCheckDouble, faEllipsisV, faTrash, faCopy, faCheckSquare } from '@fortawesome/free-solid-svg-icons';
 
 function ChatSection({ sideProfileCard, isSideProfileCard }) {
 
@@ -24,7 +24,8 @@ function ChatSection({ sideProfileCard, isSideProfileCard }) {
   const [typingUsers, setTypingUsers] = useState([]);
   const [messages, setMessages] = useState([]);
   const [sendMessage, setSendMessage] = useState('');
-  const [onlineUsers,setOnlineUsers] = useState([]);
+  const [onlineUsers, setOnlineUsers] = useState([]);
+  const [isDelSelCardVisible,setIsDelSelCardVisible] = useState(false);
 
   const typingTimeoutRef = useRef(null);
   const lastMessageRef = useRef(null);
@@ -92,12 +93,12 @@ function ChatSection({ sideProfileCard, isSideProfileCard }) {
         query: { userId }
       });
 
-      socket.current.on('update-online-status',(onlineUsersArray)=>{
+      socket.current.on('update-online-status', (onlineUsersArray) => {
         setOnlineUsers(onlineUsersArray);
       })
       console.log('socket connected')
 
-      
+
 
       if (currentChatRoom) {
         socket.current.emit('joinRoom', currentChatRoom?._id);
@@ -110,7 +111,7 @@ function ChatSection({ sideProfileCard, isSideProfileCard }) {
           );
         })
       }
- 
+
 
       socket.current.on('displayTyping', (userId) => {
         setTypingUsers((prev) => [...prev, userId]);
@@ -269,17 +270,10 @@ function ChatSection({ sideProfileCard, isSideProfileCard }) {
 
   }
 
-  // const checkForUserStatus = (receiverId) =>{
-  //   console.log(onlineUsers);
-  //       const isUserOnline = onlineUsers.find(id => id === receiverId);
-  //       console.log(isUserOnline);
-  //            if(isUserOnline){
-  //             return 'Online'
-  //            }else{
-  //             return 'Offline'
-  //            }
-  // }
-  console.log(onlineUsers)
+
+ const handleDelSelCard = async(id)=>{
+        setIsDelSelCardVisible(prev => prev === id ? '' : id);
+ }
 
   return (
     <>
@@ -325,7 +319,7 @@ function ChatSection({ sideProfileCard, isSideProfileCard }) {
                   <div key={message._id} ref={index === messages.length - 1 ? lastMessageRef : null}>
                     {message?.sender?._id === currentChat._id
                       ? (
-                        <div className='flex gap-1'>
+                        <div className='flex gap-1' >
                           <img className='rounded-full w-7 h-7 flex' src={message?.sender?.profile?.profilePic} alt="error" />
                           <div className='bg-gray-200 text-gray-800 max-w-[70%] pt-2 pb-1 px-2 flex flex-col items-center justify-center rounded-md'>
                             <p className=' text-gray-800 text-sm  font-medium -mb-2 mr-12'>{message.content}</p>
@@ -337,16 +331,38 @@ function ChatSection({ sideProfileCard, isSideProfileCard }) {
 
                       )
                       : (
-                        <div className='flex gap-1 justify-end'>
-                          <div className='bg-anotherPrimary text-sm  max-w-[70%] text-white pt-2 pb-1 px-2 flex flex-col items-center justify-center rounded-md'>
+                        <div className=' flex gap-1 justify-end group' >
+
+                          <div className='bg-gray-200 w-[2%] hidden group-hover:flex justify-center items-center rounded-l-xl relative curson-pointer' onClick={() => handleDelSelCard(message._id)}>
+                            {isDelSelCardVisible === message._id && (
+                              <div className=' bg-gray-200 absolute right-[120%] top-1/3 rounded-lg p-3  flex flex-col gap-2 '>
+                              <div className='flex gap-2'>
+                                <FontAwesomeIcon icon={faTrash} className='text-lg text-anotherPrimary' />
+                                <button className='text-sm font-medium'>Delete</button>
+                              </div>
+                              <div className='flex gap-2'>
+                                <FontAwesomeIcon icon={faCheckSquare} className='text-lg text-anotherPrimary' />
+                                <button className='text-sm font-medium'>Select</button>
+                              </div>
+                              <div className='flex gap-2'>
+                                <FontAwesomeIcon icon={faCopy} className='text-lg text-anotherPrimary' />
+                                <button className='text-sm font-medium'>Copy</button>
+                              </div>
+                            </div>
+                            )};
+                            <FontAwesomeIcon icon={faEllipsisV} className='text-gray-700 text-xl cursor-pointer' />
+                          </div>
+                          <div className='bg-anotherPrimary text-sm max-w-[70%] text-white pt-2 pb-1 px-2 flex flex-col items-center justify-center rounded-md'>
                             <p className='text-sm text-white font-medium -mb-2 mr-16'>{message.content}</p>
                             <div className='flex gap-2 w-full justify-end'>
                               <p className='text-[10px] text-gray-300'>{format(new Date(message?.createdAt), 'HH:mm')}</p>
                               <p>{statusCheck(message?.status)}</p>
                             </div>
                           </div>
+
                           <img className='rounded-full w-7 h-7 flex' src={message?.sender?.profile?.profilePic} alt="error" loading="lazy" />
                         </div>
+
                       )
                     }
                   </div>
@@ -354,7 +370,7 @@ function ChatSection({ sideProfileCard, isSideProfileCard }) {
               ))
             }
           </div>
-          
+
 
           <div className='w-[97%] ml-3 bottom-2 flex rounded-lg overflow-hidden'>
             <form className='flex w-full' onSubmit={sendInputMessage}>
