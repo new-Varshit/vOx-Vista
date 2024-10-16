@@ -26,6 +26,9 @@ function ChatSection({ sideProfileCard, isSideProfileCard, delOptCardToggle }) {
   const [sendMessage, setSendMessage] = useState('');
   const [onlineUsers, setOnlineUsers] = useState([]);
   const [isDelSelCardVisible, setIsDelSelCardVisible] = useState(false);
+  const [inSelectMode, setSelectMode] = useState(false);
+  const [selectedMsgs, setSelectedMsgs] = useState([]);
+
 
   const typingTimeoutRef = useRef(null);
   const lastMessageRef = useRef(null);
@@ -211,6 +214,9 @@ function ChatSection({ sideProfileCard, isSideProfileCard, delOptCardToggle }) {
       if (!currentChatRoom?._id) {
         return;
       }
+      if(selectedMsgs){
+        handleCancelSelection();
+       }
       try {
         const response = await api.get(`/api/message/${currentChatRoom._id}`, {
           withCredentials: true
@@ -278,51 +284,97 @@ function ChatSection({ sideProfileCard, isSideProfileCard, delOptCardToggle }) {
     setIsDelSelCardVisible(prev => prev === id ? '' : id);
   }
 
+  const toggleSelectMessage = async (id, event) => {
+    if (event) {
+      event.stopPropagation();
+    }
+    if (!inSelectMode) {
+      return
+    }
+    if (selectedMsgs.includes(id)) {
+      setSelectedMsgs(prev => prev.filter(MsgId => MsgId !== id))
+    } else {
+      setSelectedMsgs([...selectedMsgs, id]);
+    }
+    console.log(selectedMsgs)
+  };
+
+  const handleMessageSelect = (id) => {
+    if (!inSelectMode) {
+      setSelectMode(true);
+    }
+    setSelectedMsgs([id]);
+  };
+
+ 
+  const handleCancelSelection = () =>{
+       setSelectMode(false);
+       setSelectedMsgs([]);
+  }
+
   return (
     <>
       {currentChat ?
         (<div className='h-full'>
           <div className='w-full bg-white border-b-2 border-gray-200 h-[10%] '>
-            <div className='flex justify-between items-center gap-2 py-4 ml-7 w-11/12'>
-              <div className='flex items-center  gap-4'>
-                <div className='overflow-hidden rounded-full'>
-                  <img className='w-12' src={currentChat?.profile?.profilePic} alt="" onClick={sideProfileCard} />
-                </div>
-                <div className='flex flex-col '>
-                  <p className='font-semibold  text-sm'>{currentChat.userName}</p>
-                  {typingUsers.find(id => id !== currentChat._id)
-                    ?
-                    <p className='text-xs font-semibold text-green-500'>Typing...</p>
-                    :
-                    <p className='text-xs font-medium text-font'>{onlineUsers.find(id => id === currentChat._id) ? 'Online' : 'Offline'}</p>
-                  }
-                </div>
-              </div>
 
-              {!isSideProfileCard && (
-                <div className='flex gap-4'>
-                  <div>
-                    <FontAwesomeIcon icon={faPhone} className='  text-gray-400 text-xl' />
+            {inSelectMode ?
+              (<div className='flex justify-between items-center gap-2 py-4 ml-7 w-11/12'>
+
+                <div className='flex gap-1 text-lg font-semibold'>
+                  {selectedMsgs.length}
+                  <p>Selected</p>
+                </div>
+
+
+                <div className='flex gap-2   font-medium text-sm'>
+                  <button className='py-1 px-2 rounded-md border-anotherPrimary border-2 '>Delete</button>
+                  <button className='py-1 px-2 rounded-md bg-anotherPrimary text-white' onClick={()=>handleCancelSelection()}>Cancel</button>
+                </div>
+
+              </div>)
+              :
+              (<div className='flex justify-between items-center gap-2 py-4 ml-7 w-11/12'>
+                <div className='flex items-center  gap-4'>
+                  <div className='overflow-hidden rounded-full'>
+                    <img className='w-12' src={currentChat?.profile?.profilePic} alt="" onClick={sideProfileCard} />
                   </div>
-                  <div>
-                    <FontAwesomeIcon icon={faVideo} className='  text-gray-400 text-xl' />
+                  <div className='flex flex-col '>
+                    <p className='font-semibold  text-sm'>{currentChat.userName}</p>
+                    {typingUsers.find(id => id !== currentChat._id)
+                      ?
+                      <p className='text-xs font-semibold text-green-500'>Typing...</p>
+                      :
+                      <p className='text-xs font-medium text-font'>{onlineUsers.find(id => id === currentChat._id) ? 'Online' : 'Offline'}</p>
+                    }
                   </div>
                 </div>
-              )
-              }
-            </div>
+
+                {!isSideProfileCard && (
+                  <div className='flex gap-4'>
+                    <div>
+                      <FontAwesomeIcon icon={faPhone} className='  text-gray-400 text-xl' />
+                    </div>
+                    <div>
+                      <FontAwesomeIcon icon={faVideo} className='  text-gray-400 text-xl' />
+                    </div>
+                  </div>
+                )
+                }
+              </div>
+              )}
           </div>
-          <div className=' h-[83%] bg-white overflow-y-scroll scroll-smooth scrollbar-thin scrollbar-thumb-white scrollbar-track-white rounded-r-xl p-4  flex flex-col gap-3' >
+          <div className=' h-[83%] bg-white overflow-y-scroll scroll-smooth scrollbar-thin scrollbar-thumb-white scrollbar-track-white rounded-r-xl p-4  flex flex-col gap-0.5' >
 
 
 
             {
               messages.map((message, index) => (
                 message?.content ? (
-                  <div key={message._id} ref={index === messages.length - 1 ? lastMessageRef : null}>
+                  <div key={message._id} ref={index === messages.length - 1 ? lastMessageRef : null} className={`${selectedMsgs.includes(message._id) ? 'bg-blue-300  bg-opacity-50' : ''}`} onClick={() => inSelectMode && toggleSelectMessage(message._id)}>
                     {message?.sender?._id === currentChat._id
                       ? (
-                        <div className='flex gap-1 group' >
+                        <div className='flex gap-1 group mt-1' >
                           <img className='rounded-full w-7 h-7 flex' src={message?.sender?.profile?.profilePic} alt="error" />
                           <div className='bg-gray-200 text-gray-800 max-w-[70%] pt-2 pb-1 px-2 flex flex-col items-center justify-center rounded-md'>
                             <p className=' text-gray-800 text-sm  font-medium -mb-2 mr-12'>{message.content}</p>
@@ -330,52 +382,54 @@ function ChatSection({ sideProfileCard, isSideProfileCard, delOptCardToggle }) {
                               <p className='text-[10px] '>{format(new Date(message?.createdAt), 'HH:mm')}</p>
                             </div>
                           </div>
-                          <div className={`bg-gray-200 w-[2%]  ${isDelSelCardVisible === message._id ? 'flex' : 'hidden group-hover:flex' }  justify-center items-center rounded-r-xl relative curson-pointer`} onClick={() => handleDelSelCard(message._id)}>
-                            {isDelSelCardVisible === message._id && (
-                              <div className={` bg-gray-200 absolute left-[120%] ${index === messages.length - 1 ? 'bottom-1/3' : 'top-1/3'}          rounded-lg p-3  flex flex-col gap-2 `}>
-                                <div className='flex gap-2' onClick={delOptCardToggle}>
-                                  <FontAwesomeIcon icon={faTrash} className='text-lg text-anotherPrimary' />
-                                  <button className='text-sm font-medium'>Delete</button>
+                          {!inSelectMode &&
+                            (<div className={`bg-gray-200 w-[2%]  ${isDelSelCardVisible === message._id ? 'flex' : 'hidden group-hover:flex'}  justify-center items-center rounded-r-xl relative curson-pointer`} onClick={(e) => handleDelSelCard(message._id, e)}>
+                              {isDelSelCardVisible === message._id && (
+                                <div className={` bg-gray-200 absolute left-[120%] ${index === messages.length - 1 ? 'bottom-1/3' : 'top-1/3'}          rounded-lg p-3  flex flex-col gap-2 `}>
+                                  <div className='flex gap-2' onClick={delOptCardToggle}>
+                                    <FontAwesomeIcon icon={faTrash} className='text-lg text-anotherPrimary' />
+                                    <button className='text-sm font-medium'>Delete</button>
+                                  </div>
+                                  <div className='flex gap-2' onClick={() => handleMessageSelect(message._id)}>
+                                    <FontAwesomeIcon icon={faCheckSquare} className='text-lg text-anotherPrimary' />
+                                    <button className='text-sm font-medium'>Select</button>
+                                  </div>
+                                  <div className='flex gap-2'>
+                                    <FontAwesomeIcon icon={faCopy} className='text-lg text-anotherPrimary' />
+                                    <button className='text-sm font-medium'>Copy</button>
+                                  </div>
                                 </div>
-                                <div className='flex gap-2'>
-                                  <FontAwesomeIcon icon={faCheckSquare} className='text-lg text-anotherPrimary' />
-                                  <button className='text-sm font-medium'>Select</button>
-                                </div>
-                                <div className='flex gap-2'>
-                                  <FontAwesomeIcon icon={faCopy} className='text-lg text-anotherPrimary' />
-                                  <button className='text-sm font-medium'>Copy</button>
-                                </div>
-                              </div>
 
-                            )};
-                            <FontAwesomeIcon icon={faEllipsisV} className='text-gray-700 text-xl cursor-pointer' />
-                          </div>
+                              )};
+                              <FontAwesomeIcon icon={faEllipsisV} className='text-gray-700 text-xl cursor-pointer' />
+                            </div>)}
                         </div>
 
                       )
                       : (
-                        <div className=' flex gap-1 justify-end group   ' >
+                        <div className=' flex gap-1 justify-end group  mt-1 ' >
+                          {!inSelectMode &&
 
-                          <div className={`bg-gray-200 w-[2%] ${isDelSelCardVisible === message._id ? 'flex' : 'hidden group-hover:flex' } justify-center items-center rounded-l-xl relative curson-pointer`} onClick={() => handleDelSelCard(message._id)}>
-                            {isDelSelCardVisible === message._id && (
-                              <div className={` bg-gray-200 absolute right-[120%] ${index === messages.length - 1 ? 'bottom-1/3' : 'top-1/3'} rounded-lg p-3  flex flex-col gap-2 `}>
-                                <div className='flex gap-2' onClick={delOptCardToggle}>
-                                  <FontAwesomeIcon icon={faTrash} className='text-lg text-anotherPrimary' />
-                                  <button className='text-sm font-medium'>Delete</button>
+                            (<div className={`bg-gray-200 w-[2%] ${isDelSelCardVisible === message._id ? 'flex' : 'hidden group-hover:flex'} justify-center items-center rounded-l-xl relative curson-pointer`} onClick={(e) => handleDelSelCard(message._id, e)}>
+                              {isDelSelCardVisible === message._id && (
+                                <div className={` bg-gray-200 absolute right-[120%] ${index === messages.length - 1 ? 'bottom-1/3' : 'top-1/3'} rounded-lg p-3  flex flex-col gap-2 `}>
+                                  <div className='flex gap-2' onClick={delOptCardToggle}>
+                                    <FontAwesomeIcon icon={faTrash} className='text-lg text-anotherPrimary' />
+                                    <button className='text-sm font-medium'>Delete</button>
+                                  </div>
+                                  <div className='flex gap-2' onClick={() => handleMessageSelect(message._id)}>
+                                    <FontAwesomeIcon icon={faCheckSquare} className='text-lg text-anotherPrimary' />
+                                    <button className='text-sm font-medium'>Select</button>
+                                  </div>
+                                  <div className='flex gap-2'>
+                                    <FontAwesomeIcon icon={faCopy} className='text-lg text-anotherPrimary' />
+                                    <button className='text-sm font-medium'>Copy</button>
+                                  </div>
                                 </div>
-                                <div className='flex gap-2'>
-                                  <FontAwesomeIcon icon={faCheckSquare} className='text-lg text-anotherPrimary' />
-                                  <button className='text-sm font-medium'>Select</button>
-                                </div>
-                                <div className='flex gap-2'>
-                                  <FontAwesomeIcon icon={faCopy} className='text-lg text-anotherPrimary' />
-                                  <button className='text-sm font-medium'>Copy</button>
-                                </div>
-                              </div>
 
-                            )};
-                            <FontAwesomeIcon icon={faEllipsisV} className='text-gray-700 text-xl cursor-pointer' />
-                          </div>
+                              )};
+                              <FontAwesomeIcon icon={faEllipsisV} className='text-gray-700 text-xl cursor-pointer' />
+                            </div>)}
                           <div className='bg-anotherPrimary text-sm max-w-[70%] text-white pt-2 pb-1 px-2 flex flex-col items-center justify-center rounded-md'>
                             <p className='text-sm text-white font-medium -mb-2 mr-16'>{message.content}</p>
                             <div className='flex gap-2 w-full justify-end'>
@@ -429,9 +483,7 @@ function ChatSection({ sideProfileCard, isSideProfileCard, delOptCardToggle }) {
 
 
       }
-      <div>
 
-      </div>
     </>
   )
 }

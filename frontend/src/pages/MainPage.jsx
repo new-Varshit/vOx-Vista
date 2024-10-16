@@ -139,7 +139,6 @@ function MainPage() {
                 {isNewChatCardVisible &&
                     <NewChatSearch newChatCard={newChatCard} />
                 }
-
                 {isDelOptCardVisible &&
                     (
                         <div className='h-screen w-full z-10 absolute bg-transparent backdrop-blur-md flex justify-center items-center' onClick={() => setIsDelOptCardVisible(false)}>
