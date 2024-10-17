@@ -1,5 +1,5 @@
 import express from 'express';
-import {sendMessage, getMessagesByChatRoom,updateAllMsgsToDelivered, updateMsgsToRead,updateMsgToDelivered, updateMsgToRead} from '../controllers/message.controller.js'
+import {sendMessage, getMessagesByChatRoom,updateAllMsgsToDelivered,deleteSelectedMsgs, updateMsgsToRead,updateMsgToDelivered, updateMsgToRead} from '../controllers/message.controller.js'
 
 const  router = express.Router();
 
@@ -13,6 +13,10 @@ router.post('/updateMsgToRead/:msgId',updateMsgToRead);
 
 router.post('/updateMsgToDelivered/:msgId',updateMsgToDelivered);
 
+router.post('/deleteSelectedMsgs',deleteSelectedMsgs);
+
 router.get('/:chatRoomId',getMessagesByChatRoom);
+
+
 
 export default router;

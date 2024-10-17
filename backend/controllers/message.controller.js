@@ -71,13 +71,13 @@ export const updateMsgToDelivered = async (req, res) => {
 
 // updating all messages from a single chatroom of a user to read 
 
-export const updateMsgsToRead= async (req, res) => {
+export const updateMsgsToRead = async (req, res) => {
   const senderId = req.params.senderId;
-  
+
   try {
 
     const updatedMessages = await Message.updateMany(
-      {sender:senderId, status: 'delivered' },
+      { sender: senderId, status: 'delivered' },
       { $set: { status: 'read' } }
     );
 
@@ -94,18 +94,18 @@ export const updateMsgsToRead= async (req, res) => {
 
 export const updateAllMsgsToDelivered = async (req, res) => {
   const userId = req.id.userId;
-    console.log(userId);
-       const chatRoomIds =await getChatRoomsForUser(userId);
+  console.log(userId);
+  const chatRoomIds = await getChatRoomsForUser(userId);
 
   try {
     const updatedMessages = await Message.updateMany(
       {
-        sender: { $ne: userId }, 
+        sender: { $ne: userId },
         chatRoom: { $in: chatRoomIds },
-        status: 'sent'     
+        status: 'sent'
       },
       {
-        $set: { status: 'delivered' }  
+        $set: { status: 'delivered' }
       }
     );
     console.log(updatedMessages);
@@ -120,19 +120,19 @@ export const updateAllMsgsToDelivered = async (req, res) => {
 
 // updating message status to read 
 
-export const  updateMsgToRead = async (req,res) => {
+export const updateMsgToRead = async (req, res) => {
   const msgId = req.params.msgId;
-try{
-    const message = await Message.findByIdAndUpdate(msgId,{status:'read'},{new:true});
-          
+  try {
+    const message = await Message.findByIdAndUpdate(msgId, { status: 'read' }, { new: true });
+
     return res.status(200).json({
-          success:true,
-          message
+      success: true,
+      message
     });
 
-}catch(err){
-  console.log(err);
-}
+  } catch (err) {
+    console.log(err);
+  }
 }
 
 
@@ -141,9 +141,27 @@ try{
 
 const getChatRoomsForUser = async (userId) => {
   const chatRooms = await ChatRoom.find({
-    members : userId  
-  }).select('_id'); 
-  return chatRooms.map(chatRoom => chatRoom._id); 
+    members: userId
+  }).select('_id');
+  return chatRooms.map(chatRoom => chatRoom._id);
 };
 
 
+export const deleteSelectedMsgs = async (req, res) => {
+  const userId = req.id.userId;
+  const {selectedMsgs} = req.body;
+  console.log(selectedMsgs);
+  console.log(userId);
+  try {
+    await Message.updateMany(
+      { _id: { $in: selectedMsgs } },  // Find all messages with the given IDs
+      { $addToSet: { deletedFor: userId } } // Add userId to deletedFor array, avoiding duplicates
+    );
+    return res.status(200).json({
+      success: true,
+      message: "Messages successfully updated for deletion"
+    });
+  } catch (err) {
+    console.log(err);
+  }
+}

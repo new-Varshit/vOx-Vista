@@ -312,6 +312,31 @@ function ChatSection({ sideProfileCard, isSideProfileCard, delOptCardToggle }) {
        setSelectedMsgs([]);
   }
 
+  const deleteSelectedMsgs = async () =>{
+    console.log('selected msgs: ',selectedMsgs);
+      try{
+      const response = await api.post('/api/message/deleteSelectedMsgs',{selectedMsgs},{
+        withCredentials:true
+      })
+    if(response.data.success){
+        console.log('done bhai ');
+        setMessages(prevMsgs => prevMsgs.filter(msg => !selectedMsgs.includes(msg._id)));
+        handleCancelSelection();
+      }
+      }catch(err){
+console.log(err);
+      }
+  }
+  
+  const handleSingleMsgDeletion = (msg) =>{
+    setSelectedMsgs([msg._id]);
+       if(msg.sender === userId){
+             delOptCardToggle(msg._id);
+       }else{
+          deleteSelectedMsgs();
+       }
+  }
+
   return (
     <>
       {currentChat ?
@@ -328,7 +353,7 @@ function ChatSection({ sideProfileCard, isSideProfileCard, delOptCardToggle }) {
 
 
                 <div className='flex gap-2   font-medium text-sm'>
-                  <button className='py-1 px-2 rounded-md border-anotherPrimary border-2 '>Delete</button>
+                  <button className='py-1 px-2 rounded-md border-anotherPrimary border-2' onClick={deleteSelectedMsgs} >Delete</button>
                   <button className='py-1 px-2 rounded-md bg-anotherPrimary text-white' onClick={()=>handleCancelSelection()}>Cancel</button>
                 </div>
 
@@ -370,7 +395,7 @@ function ChatSection({ sideProfileCard, isSideProfileCard, delOptCardToggle }) {
 
             {
               messages.map((message, index) => (
-                message?.content ? (
+                message?.content && !message?.deletedFor.includes(userId) ? (
                   <div key={message._id} ref={index === messages.length - 1 ? lastMessageRef : null} className={`${selectedMsgs.includes(message._id) ? 'bg-blue-300  bg-opacity-50' : ''}`} onClick={() => inSelectMode && toggleSelectMessage(message._id)}>
                     {message?.sender?._id === currentChat._id
                       ? (
@@ -386,7 +411,7 @@ function ChatSection({ sideProfileCard, isSideProfileCard, delOptCardToggle }) {
                             (<div className={`bg-gray-200 w-[2%]  ${isDelSelCardVisible === message._id ? 'flex' : 'hidden group-hover:flex'}  justify-center items-center rounded-r-xl relative curson-pointer`} onClick={(e) => handleDelSelCard(message._id, e)}>
                               {isDelSelCardVisible === message._id && (
                                 <div className={` bg-gray-200 absolute left-[120%] ${index === messages.length - 1 ? 'bottom-1/3' : 'top-1/3'}          rounded-lg p-3  flex flex-col gap-2 `}>
-                                  <div className='flex gap-2' onClick={delOptCardToggle}>
+                                  <div className='flex gap-2' onClick={handleSingleMsgDeletion}>
                                     <FontAwesomeIcon icon={faTrash} className='text-lg text-anotherPrimary' />
                                     <button className='text-sm font-medium'>Delete</button>
                                   </div>
