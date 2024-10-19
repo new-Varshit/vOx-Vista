@@ -17,7 +17,7 @@ function MainPage() {
 
     const navigate = useNavigate();
     const dispatch = useDispatch();
-    console.log('mainpage');
+
 
     const [isSideProfileCard, setIsSideProfileCard] = useState(false);
     const [isProfileCardVisible, setisProfileCardVisible] = useState(false);

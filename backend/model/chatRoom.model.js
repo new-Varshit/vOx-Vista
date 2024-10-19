@@ -12,6 +12,16 @@ const chatRoomSchema = new mongoose.Schema({
             ref: 'User',
         },
     ],
+    lastMessage:{
+        type: mongoose.Schema.Types.ObjectId,
+        ref:'Message'
+    },
+    deletedFor:[
+        {
+         type:mongoose.Schema.Types.ObjectId,
+         ref:'User'
+        }
+    ],
     isGroupChat: {
         type: Boolean,
         default: false
@@ -20,7 +30,7 @@ const chatRoomSchema = new mongoose.Schema({
         type: mongoose.Schema.Types.ObjectId,
         ref: "User",
     },
-
+    
 }, { timestamps: true });
 
 export const ChatRoom = mongoose.model('ChatRoom', chatRoomSchema);

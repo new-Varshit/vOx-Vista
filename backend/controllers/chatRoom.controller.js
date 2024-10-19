@@ -74,6 +74,34 @@ const getNumberOfUnreadMsgs = async (chatRoomId, receiverId) => {
         return unreadMsgsCount;
     } catch (err) {
         console.error('Error counting unread messages:', err);
-        throw err; 
+        throw err;
     }
 }
+
+export const dltChatRoom = async (req, res) => {
+    const userId = req.id.userId;
+    const { chatRoomId } = req.params;
+    try {
+        await Message.updateMany({ chatRoom: chatRoomId, deletedFor: { $ne: userId } }, {
+            $addToSet: { deletedFor: userId }
+        });
+
+        const chatRoom = await ChatRoom.findById(chatRoomId);
+        if  (chatRoom.deletedFor.length > 0 && !chatRoom.deletedFor.includes(userId)) {
+            await Message.deleteMany({ chatRoom: chatRoomId });
+            await ChatRoom.findByIdAndDelete(chatRoomId);
+        } else {
+            await ChatRoom.findByIdAndUpdate(chatRoomId, { $addToSet: { deletedFor: userId } })
+        }
+
+        return res.status(200).json({
+            success: true,
+            message: 'successfully deleted chat'
+        })
+
+    } catch (err) {
+        console.log(err)
+        return res.status(500).json({ success: false, message: 'An error occurred' });
+    }
+}
+

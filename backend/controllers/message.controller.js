@@ -10,6 +10,7 @@ export const sendMessage = async (req, res) => {
   const senderId = req.id.userId;
   let message;
   try {
+       await ChatRoom.findByIdAndUpdate(chatRoomId,{deletedFor:[]});
     message = await Message.create({
       content,
       sender: senderId,
@@ -157,6 +158,16 @@ export const deleteSelectedMsgs = async (req, res) => {
       { _id: { $in: selectedMsgs } },  // Find all messages with the given IDs
       { $addToSet: { deletedFor: userId } } // Add userId to deletedFor array, avoiding duplicates
     );
+    await Message.deleteMany({
+      _id: { $in: selectedMsgs },
+      $expr: {
+        $and: [
+          { $eq: [{ $size: "$deletedFor" }, 2] },  // Ensures deletedFor has exactly 2 elements
+          { $in: [userId, "$deletedFor"] }         // Ensures userId is in the deletedFor array
+        ]
+      }
+    });
+    
     return res.status(200).json({
       success: true,
       message: "Messages successfully updated for deletion"
@@ -170,6 +181,7 @@ export const deleteMsgForEveryone = async (req, res) => {
   const msgId = req.params.msgId;
   try {
     const deletedMessage = await Message.findByIdAndDelete(msgId, { new: true });
+    
     console.log(deletedMessage);
     return res.status(200).json({
       success: true,
@@ -177,5 +189,42 @@ export const deleteMsgForEveryone = async (req, res) => {
     });
   } catch (err) {
     console.log(err);
+  }
+}
+
+export const clrChatRoomMsgs = async (req, res) => {
+  const userId = req.id.userId;
+  const { chatRoomId } = req.params;
+
+  try {
+    const result = await Message.updateMany({ chatRoom: chatRoomId, deletedFor: { $ne: userId } }, { $addToSet: { deletedFor: userId } });
+    await Message.deleteMany({
+      chatRoom: chatRoomId,
+      $expr: {
+        $and: [
+          { $eq: [{ $size: "$deletedFor" }, 2] },  // Ensures deletedFor has exactly 2 elements
+          { $in: [userId, "$deletedFor"] }         // Ensures userId is in the deletedFor array
+        ]
+      }
+    });
+    
+     if (result.modifiedCount > 0) {
+      return res.status(200).json({
+        message: 'Successfully cleared all messages from the chat',
+        success: true
+      });
+    } else {
+      return res.status(204).json({
+        message: 'No messages to clear from the chat',
+        success: true
+      });
+    }
+
+  } catch (err) {
+    console.log(err);
+    return res.status(500).json({
+      message: 'internal server error',
+      success: false
+    })
   }
 }

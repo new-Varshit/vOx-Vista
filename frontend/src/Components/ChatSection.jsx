@@ -17,6 +17,7 @@ function ChatSection({ sideProfileCard, isSideProfileCard, delOptCardToggle }) {
   const token = localStorage.getItem('token');
   const decodedToken = jwtDecode(token);
   const userId = decodedToken.userId;
+  
   const currentChat = useSelector((state) => state.chat.currentChat);
   const currentChatRoom = useSelector((state) => state.chatRoom.currentChatRoom);
 
