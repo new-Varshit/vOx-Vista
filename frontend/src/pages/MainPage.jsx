@@ -23,6 +23,7 @@ function MainPage() {
     const [isProfileCardVisible, setisProfileCardVisible] = useState(false);
     const [isNewChatCardVisible, setIsNewChatCardVisible] = useState(false);
     const [isDelOptCardVisible, setIsDelOptCardVisible] = useState(false);
+    const [msgId,setMsgId] = useState(null);
     const [profileData, setProfileData] = useState('');
 
 
@@ -38,9 +39,40 @@ function MainPage() {
         setIsNewChatCardVisible(!isNewChatCardVisible);
     }
 
-    const delOptCardToggle = () => {
-        setIsDelOptCardVisible(!isDelOptCardVisible);
+    const delOptCardToggle = (msgId) => {
+        if(msgId){
+            setMsgId(msgId);
+        }
+        setIsDelOptCardVisible(true);
     }
+
+    const deleteSelectedMsg = async () =>{
+        try{ 
+            const response = await api.post('/api/message/deleteSelectedMsgs',{selectedMsgs:[msgId]},{
+                withCredentials:true
+              })
+              if(response.data.success){
+                console.log('deleted your message for you only...');
+                  setIsDelOptCardVisible(false);
+              }
+                }catch(err){
+            console.log(err);
+        }
+    }
+
+    const deleteMsgForEveryone = async () =>{
+        try{
+        const response = await api.post(`/api/message/deleteMsgForEveryone/${msgId}`,null,{
+            withCredentials:true
+        })
+        if(response.data.success){
+            console.log('deleted Your message for everyone...');
+        }
+        }catch(err){
+            console.log(err);
+        }
+    }
+
 
     const userLoggedOut = async () => {
         try {
@@ -151,8 +183,8 @@ function MainPage() {
                                         Delete Message ?
                                     </p>
                                     <div className='flex  flex-col gap-3 justify-evenly items-center'>
-                                        <button className='w-3/4 p-1 py-2 font-medium hover:bg-white hover:text-anotherPrimary bg-anotherPrimary text-white text-sm rounded-lg'>Delete for me</button>
-                                        <button className='w-3/4 p-1 py-2 font-medium hover:bg-white hover:text-anotherPrimary text-white bg-anotherPrimary text-sm rounded-lg'>Delete for everyone</button>
+                                        <button className='w-3/4 p-1 py-2 font-medium hover:bg-white hover:text-anotherPrimary bg-anotherPrimary text-white text-sm rounded-lg' onClick={deleteSelectedMsg}>Delete for me</button>
+                                        <button className='w-3/4 p-1 py-2 font-medium hover:bg-white hover:text-anotherPrimary text-white bg-anotherPrimary text-sm rounded-lg' onClick={deleteMsgForEveryone}>Delete for everyone</button>
                                     </div>
                                 </div>
 

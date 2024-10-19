@@ -214,15 +214,16 @@ function ChatSection({ sideProfileCard, isSideProfileCard, delOptCardToggle }) {
       if (!currentChatRoom?._id) {
         return;
       }
-      if(selectedMsgs){
+      if (selectedMsgs) {
         handleCancelSelection();
-       }
+      }
       try {
         const response = await api.get(`/api/message/${currentChatRoom._id}`, {
           withCredentials: true
         })
         if (response.data.success) {
-          setMessages(response.data.messages);
+          const visibleMessages = response?.data?.messages.filter(msg => !msg.deletedFor.includes(userId))
+          setMessages(visibleMessages);
         }
       } catch (err) {
         console.log(err);
@@ -306,36 +307,56 @@ function ChatSection({ sideProfileCard, isSideProfileCard, delOptCardToggle }) {
     setSelectedMsgs([id]);
   };
 
- 
-  const handleCancelSelection = () =>{
-       setSelectMode(false);
-       setSelectedMsgs([]);
+
+  const handleCancelSelection = () => {
+    setSelectMode(false);
+    setSelectedMsgs([]);
   }
 
-  const deleteSelectedMsgs = async () =>{
-    console.log('selected msgs: ',selectedMsgs);
-      try{
-      const response = await api.post('/api/message/deleteSelectedMsgs',{selectedMsgs},{
-        withCredentials:true
-      })
-    if(response.data.success){
+
+  const deleteSelectedMsgs = async (msgId) => {
+    try {
+      let response;
+  
+      console.log('selected msgs: ', selectedMsgs);
+  
+      if (msgId && selectedMsgs.length === 0) {
+        response = await api.post('/api/message/deleteSelectedMsgs', { selectedMsgs: [msgId] }, {
+          withCredentials: true
+        });
+      } else {
+        response = await api.post('/api/message/deleteSelectedMsgs', { selectedMsgs }, {
+          withCredentials: true
+        });
+      }
+  
+      if (response.data.success) {
         console.log('done bhai ');
-        setMessages(prevMsgs => prevMsgs.filter(msg => !selectedMsgs.includes(msg._id)));
-        handleCancelSelection();
+        if (msgId) {
+          setMessages(prevMsgs => prevMsgs.filter(mssg => mssg._id !== msgId));
+        } else {
+          setMessages(prevMsgs => prevMsgs.filter(mssg => !selectedMsgs.includes(mssg._id)));
+          handleCancelSelection(); 
+        }
       }
-      }catch(err){
-console.log(err);
-      }
+    } catch (err) {
+      console.log(err);
+    }
   }
   
-  const handleSingleMsgDeletion = (msg) =>{
-    setSelectedMsgs([msg._id]);
-       if(msg.sender === userId){
-             delOptCardToggle(msg._id);
-       }else{
-          deleteSelectedMsgs();
-       }
+  const handleSingleMsgDeletion = (msg) => {
+    console.log(msg.sender);
+    console.log(userId);
+    if (msg.sender._id === userId) {
+      console.log('yo');
+      delOptCardToggle(msg._id);
+      setMessages(prevMsgs => prevMsgs.filter(mssg => mssg._id !== msg._id)); 
+    } else {
+      console.log('hey');
+      deleteSelectedMsgs(msg._id);
+    }
   }
+  
 
   return (
     <>
@@ -354,7 +375,7 @@ console.log(err);
 
                 <div className='flex gap-2   font-medium text-sm'>
                   <button className='py-1 px-2 rounded-md border-anotherPrimary border-2' onClick={deleteSelectedMsgs} >Delete</button>
-                  <button className='py-1 px-2 rounded-md bg-anotherPrimary text-white' onClick={()=>handleCancelSelection()}>Cancel</button>
+                  <button className='py-1 px-2 rounded-md bg-anotherPrimary text-white' onClick={() => handleCancelSelection()}>Cancel</button>
                 </div>
 
               </div>)
@@ -395,11 +416,11 @@ console.log(err);
 
             {
               messages.map((message, index) => (
-                message?.content && !message?.deletedFor.includes(userId) ? (
+                message?.content ? (
                   <div key={message._id} ref={index === messages.length - 1 ? lastMessageRef : null} className={`${selectedMsgs.includes(message._id) ? 'bg-blue-300  bg-opacity-50' : ''}`} onClick={() => inSelectMode && toggleSelectMessage(message._id)}>
                     {message?.sender?._id === currentChat._id
                       ? (
-                        <div className='flex gap-1 group mt-1' >
+                        <div className='flex gap-1 group mt-1'>
                           <img className='rounded-full w-7 h-7 flex' src={message?.sender?.profile?.profilePic} alt="error" />
                           <div className='bg-gray-200 text-gray-800 max-w-[70%] pt-2 pb-1 px-2 flex flex-col items-center justify-center rounded-md'>
                             <p className=' text-gray-800 text-sm  font-medium -mb-2 mr-12'>{message.content}</p>
@@ -411,7 +432,7 @@ console.log(err);
                             (<div className={`bg-gray-200 w-[2%]  ${isDelSelCardVisible === message._id ? 'flex' : 'hidden group-hover:flex'}  justify-center items-center rounded-r-xl relative curson-pointer`} onClick={(e) => handleDelSelCard(message._id, e)}>
                               {isDelSelCardVisible === message._id && (
                                 <div className={` bg-gray-200 absolute left-[120%] ${index === messages.length - 1 ? 'bottom-1/3' : 'top-1/3'}          rounded-lg p-3  flex flex-col gap-2 `}>
-                                  <div className='flex gap-2' onClick={handleSingleMsgDeletion}>
+                                  <div className='flex gap-2' onClick={() => handleSingleMsgDeletion(message)}>
                                     <FontAwesomeIcon icon={faTrash} className='text-lg text-anotherPrimary' />
                                     <button className='text-sm font-medium'>Delete</button>
                                   </div>
@@ -438,7 +459,7 @@ console.log(err);
                             (<div className={`bg-gray-200 w-[2%] ${isDelSelCardVisible === message._id ? 'flex' : 'hidden group-hover:flex'} justify-center items-center rounded-l-xl relative curson-pointer`} onClick={(e) => handleDelSelCard(message._id, e)}>
                               {isDelSelCardVisible === message._id && (
                                 <div className={` bg-gray-200 absolute right-[120%] ${index === messages.length - 1 ? 'bottom-1/3' : 'top-1/3'} rounded-lg p-3  flex flex-col gap-2 `}>
-                                  <div className='flex gap-2' onClick={delOptCardToggle}>
+                                  <div className='flex gap-2' onClick={() => handleSingleMsgDeletion(message)}>
                                     <FontAwesomeIcon icon={faTrash} className='text-lg text-anotherPrimary' />
                                     <button className='text-sm font-medium'>Delete</button>
                                   </div>

@@ -149,7 +149,7 @@ const getChatRoomsForUser = async (userId) => {
 
 export const deleteSelectedMsgs = async (req, res) => {
   const userId = req.id.userId;
-  const {selectedMsgs} = req.body;
+  const { selectedMsgs } = req.body;
   console.log(selectedMsgs);
   console.log(userId);
   try {
@@ -160,6 +160,20 @@ export const deleteSelectedMsgs = async (req, res) => {
     return res.status(200).json({
       success: true,
       message: "Messages successfully updated for deletion"
+    });
+  } catch (err) {
+    console.log(err);
+  }
+}
+
+export const deleteMsgForEveryone = async (req, res) => {
+  const msgId = req.params.msgId;
+  try {
+    const deletedMessage = await Message.findByIdAndDelete(msgId, { new: true });
+    console.log(deletedMessage);
+    return res.status(200).json({
+      success: true,
+      message: "Message has been deleted permanently for everyone"
     });
   } catch (err) {
     console.log(err);
