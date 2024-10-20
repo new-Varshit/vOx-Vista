@@ -1,6 +1,5 @@
 import { Message } from "../model/message.model.js";
 import { ChatRoom } from '../model/chatRoom.model.js';
-import mongoose from "mongoose";
 
 
 // saving a message in the database 
@@ -10,15 +9,15 @@ export const sendMessage = async (req, res) => {
   const senderId = req.id.userId;
   let message;
   try {
-       await ChatRoom.findByIdAndUpdate(chatRoomId,{deletedFor:[]});
     message = await Message.create({
       content,
       sender: senderId,
       chatRoom: chatRoomId,
       status: 'sent'
     });
-
     message = await message.populate('sender');
+
+    await ChatRoom.findByIdAndUpdate(chatRoomId,{ deletedFor: [],lastMessage:message._id}); 
 
 
     res.status(200).json({ success: true, message });
@@ -95,7 +94,6 @@ export const updateMsgsToRead = async (req, res) => {
 
 export const updateAllMsgsToDelivered = async (req, res) => {
   const userId = req.id.userId;
-  console.log(userId);
   const chatRoomIds = await getChatRoomsForUser(userId);
 
   try {
@@ -109,7 +107,6 @@ export const updateAllMsgsToDelivered = async (req, res) => {
         $set: { status: 'delivered' }
       }
     );
-    console.log(updatedMessages);
     res.status(200).json({ success: true, updatedMessages });
   } catch (err) {
     console.error(err);
@@ -167,7 +164,7 @@ export const deleteSelectedMsgs = async (req, res) => {
         ]
       }
     });
-    
+
     return res.status(200).json({
       success: true,
       message: "Messages successfully updated for deletion"
@@ -177,12 +174,13 @@ export const deleteSelectedMsgs = async (req, res) => {
   }
 }
 
+//deleting a message for everyone in a chatroom
+
 export const deleteMsgForEveryone = async (req, res) => {
   const msgId = req.params.msgId;
   try {
     const deletedMessage = await Message.findByIdAndDelete(msgId, { new: true });
-    
-    console.log(deletedMessage);
+
     return res.status(200).json({
       success: true,
       message: "Message has been deleted permanently for everyone"
@@ -191,6 +189,8 @@ export const deleteMsgForEveryone = async (req, res) => {
     console.log(err);
   }
 }
+
+//deleting all the messges of a chatroom  for a the user only 
 
 export const clrChatRoomMsgs = async (req, res) => {
   const userId = req.id.userId;
@@ -207,8 +207,8 @@ export const clrChatRoomMsgs = async (req, res) => {
         ]
       }
     });
-    
-     if (result.modifiedCount > 0) {
+
+    if (result.modifiedCount > 0) {
       return res.status(200).json({
         message: 'Successfully cleared all messages from the chat',
         success: true

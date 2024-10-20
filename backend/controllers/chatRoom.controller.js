@@ -17,6 +17,8 @@ export const createOrGetChatRoom = async (req, res) => {
             });
         }
 
+        chatRoom = await chatRoom.populate('lastMessage');
+        console.log('your chat room :', chatRoom);
         return res.status(200).json({
             success: true,
             chatRoom
@@ -36,17 +38,26 @@ export const getAllChatRooms = async (req, res) => {
     try {
         const chats = await ChatRoom.find({
             members: { $in: [userId] }
-        }).populate('members');
+        }).populate('members').populate('lastMessage');
+
+
 
         const chatRoomsPromises = chats.map(async chat => {
             const receiverProfile = chat.members.find(member => String(member._id) !== String(userId));
             const unreadMsgs = await getNumberOfUnreadMsgs(chat._id, receiverProfile._id);
+            let lastMessage = await Message.findOne({
+                chatRoom: chat._id,
+                deletedFor: { $ne: userId }
+            }).sort({ createdAt: -1 });
             return {
                 ...chat.toObject(),
                 receiver: receiverProfile,
-                unreadMsgs
+                unreadMsgs,
+                lastMessage
             }
         });
+
+        
 
         const chatRooms = await Promise.all(chatRoomsPromises);
 
@@ -87,7 +98,7 @@ export const dltChatRoom = async (req, res) => {
         });
 
         const chatRoom = await ChatRoom.findById(chatRoomId);
-        if  (chatRoom.deletedFor.length > 0 && !chatRoom.deletedFor.includes(userId)) {
+        if (chatRoom.deletedFor.length > 0 && !chatRoom.deletedFor.includes(userId)) {
             await Message.deleteMany({ chatRoom: chatRoomId });
             await ChatRoom.findByIdAndDelete(chatRoomId);
         } else {

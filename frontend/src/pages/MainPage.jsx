@@ -11,6 +11,8 @@ import NewChatSearch from '../Components/NewChatSearch';
 import { logIn, logOut } from '../store/authSlice';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faTimes } from '@fortawesome/free-solid-svg-icons';
+import { setCurrentChat } from '../store/chatSlice';
+import { setCurrentChatRoom } from '../store/chatRoomSlice';
 
 
 function MainPage() {
@@ -18,14 +20,12 @@ function MainPage() {
     const navigate = useNavigate();
     const dispatch = useDispatch();
 
-
     const [isSideProfileCard, setIsSideProfileCard] = useState(false);
     const [isProfileCardVisible, setisProfileCardVisible] = useState(false);
     const [isNewChatCardVisible, setIsNewChatCardVisible] = useState(false);
     const [isDelOptCardVisible, setIsDelOptCardVisible] = useState(false);
-    const [msgId,setMsgId] = useState(null);
     const [profileData, setProfileData] = useState('');
-
+    const [msgId,setMsgId] = useState(null);
 
     const profileCardToggle = () => {
         setisProfileCardVisible(!isProfileCardVisible);
@@ -80,6 +80,8 @@ function MainPage() {
                 withCredentials: true
             })
             if (response.data.success) {
+                dispatch(setCurrentChat(null));
+                dispatch(setCurrentChatRoom(null));
                 dispatch(logOut());
                 navigate('/login');
             }

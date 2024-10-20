@@ -1,6 +1,7 @@
-import React, { useState,useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import profilePic from '../assets/profilePic.jpg';
 import { jwtDecode } from 'jwt-decode';
+import { format } from 'date-fns';
 import { useDispatch, useSelector } from 'react-redux';
 import { setCurrentChat } from '../store/chatSlice';
 import { setCurrentChatRoom } from '../store/chatRoomSlice';
@@ -44,49 +45,49 @@ function ChatListing({ newChatCard }) {
         }
     }
 
-    const handleChatMenuToggle = (chatRoomId,e) => {
+    const handleChatMenuToggle = (chatRoomId, e) => {
         e.preventDefault();
         setIsChatMenuVisible(prevId => prevId === null ? chatRoomId : null)
     }
- 
-    const deleteActiveChat =async (chatId) =>{
+
+    const deleteActiveChat = async (chatId) => {
         console.log(chatId);
-        try{
-              const response  =await api.post(`/api/chatroom/dltChatRoom/${chatId}`,null,{
-                withCredentials:true
-              })
-              if(response.data.success){
-                  console.log(response.data.message);
-                  setActiveChatRooms(prevChat=> prevChat.filter(chatRoom=> chatRoom._id != chatId));
-                  setIsChatMenuVisible(null);
-                  
-                  if(chatId === currentChatRoom._id){
-                  dispatch(setCurrentChatRoom(null));
-                  dispatch(setCurrentChat(null));
-                  }
-              }
-        }catch(err){
+        try {
+            const response = await api.post(`/api/chatroom/dltChatRoom/${chatId}`, null, {
+                withCredentials: true
+            })
+            if (response.data.success) {
+                console.log(response.data.message);
+                setActiveChatRooms(prevChat => prevChat.filter(chatRoom => chatRoom._id != chatId));
+                setIsChatMenuVisible(null);
+
+                if (chatId === currentChatRoom._id) {
+                    dispatch(setCurrentChatRoom(null));
+                    dispatch(setCurrentChat(null));
+                }
+            }
+        } catch (err) {
             console.log(err);
         }
     }
 
-    const clearAllMsgsForUser = async (chatId) =>{
-        try{
-            const response  = await api.post(`/api/message/clrChatRoomMsgs/${chatId}`,null,{
-                withCredentials:true        
+    const clearAllMsgsForUser = async (chatId) => {
+        try {
+            const response = await api.post(`/api/message/clrChatRoomMsgs/${chatId}`, null, {
+                withCredentials: true
             })
-            if(response.data.success){
+            if (response.data.success) {
                 console.log(response.data.message);
                 setIsChatMenuVisible(null);
             }
-        }catch(err){
+        } catch (err) {
             console.log(err);
         }
     }
 
     const handleClickOutside = (event) => {
         if (menuRef.current && !menuRef.current.contains(event.target)) {
-            setIsChatMenuVisible(null); 
+            setIsChatMenuVisible(null);
         }
     };
 
@@ -98,6 +99,7 @@ function ChatListing({ newChatCard }) {
                     withCredentials: true
                 });
                 if (response.data.success) {
+                    console.log(response.data.chatRooms);
                     console.log(response.data.chatRooms);
                     setActiveChatRooms(response.data.chatRooms.filter(chatRoom => !chatRoom.deletedFor.includes(userId)));
                 }
@@ -151,15 +153,16 @@ function ChatListing({ newChatCard }) {
                         </div>
                         :
                         activeChatRooms.map((chatRoom) => (
-                            <div className='flex justify-start gap-3 relative overflow-visible' key={chatRoom._id} ref={menuRef} onContextMenu={(e) => handleChatMenuToggle(chatRoom._id,e)} onClick={() => handleChatClick(chatRoom.receiver)}>
+                        
+                            <div className='flex justify-start gap-3 relative overflow-visible' key={chatRoom._id} ref={menuRef} onContextMenu={(e) => handleChatMenuToggle(chatRoom._id, e)} onClick={() => handleChatClick(chatRoom.receiver)}>
                                 <img className='rounded-full w-[15%]' src={chatRoom?.receiver?.profile?.profilePic} alt="profile picture" />
                                 <div className='flex flex-col w-5/6 justify-center'>
                                     <div className='flex justify-between w-full mb-0'>
                                         <p className='text-anotherPrimary font-semibold text-sm'>{chatRoom?.receiver?.userName}</p>
-                                        <p className='text-xs text-font'>6:23 pm</p>
+                                        <p className='text-xs text-font'>{format(new Date(chatRoom?.lastMessage?.createdAt), 'HH:mm')}</p>
                                     </div>
                                     <div className='flex justify-between w-full mt-0'>
-                                        <p className='text-xs text-font truncate'>{chatRoom?.receiver?.profile?.bio}</p>
+                                        <p className='text-xs text-font truncate'>{chatRoom?.lastMessage?.sender === userId ? 'You: ' + chatRoom?.lastMessage?.content : chatRoom?.lastMessage?.content}</p>
 
                                         <p className={`${chatRoom?.unreadMsgs === 0 || currentChatRoom?._id === chatRoom._id ? 'bg-gray-200 text-gray-200' : 'bg-anotherPrimary text-white'} rounded-full text-xs font-semibold px-1 text-center flex items-center`}>{chatRoom?.unreadMsgs}</p>
                                     </div>
@@ -167,9 +170,9 @@ function ChatListing({ newChatCard }) {
                                 {
                                     isChatMenuVisible === chatRoom._id &&
                                     <div className='absolute p-2 bg-white rounded-lg right-0  top-1/2   flex flex-col z-10'>
-                                        <p className='text-anotherPrimary font-medium text-xs cursor-pointer' onClick={()=>deleteActiveChat(chatRoom._id)}>Delete</p>
+                                        <p className='text-anotherPrimary font-medium text-xs cursor-pointer' onClick={() => deleteActiveChat(chatRoom._id)}>Delete</p>
                                         <p className='text-anotherPrimary font-medium text-xs cursor-pointer' >Pin to top</p>
-                                        <p className='text-anotherPrimary font-medium text-xs cursor-pointer' onClick={()=>clearAllMsgsForUser(chatRoom._id)}>Clear messages</p>
+                                        <p className='text-anotherPrimary font-medium text-xs cursor-pointer' onClick={() => clearAllMsgsForUser(chatRoom._id)}>Clear messages</p>
                                     </div>
                                 }
 
