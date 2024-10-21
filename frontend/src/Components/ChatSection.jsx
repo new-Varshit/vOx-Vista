@@ -31,11 +31,14 @@ function ChatSection({ sideProfileCard, isSideProfileCard, delOptCardToggle }) {
   const [isDelSelCardVisible, setIsDelSelCardVisible] = useState(false);
   const [inSelectMode, setSelectMode] = useState(false);
   const [selectedMsgs, setSelectedMsgs] = useState([]);
+  const [file, setFile] = useState(null);
 
   //references we are using 
   const typingTimeoutRef = useRef(null);
   const lastMessageRef = useRef(null);
   const socket = useRef(null);
+  const fileInputRef = useRef(null); 
+
 
   const typingObj = {
     userId: currentChat?._id,
@@ -407,7 +410,14 @@ function ChatSection({ sideProfileCard, isSideProfileCard, delOptCardToggle }) {
     }
   }
 
+  const handleFileChange = (event) => {
+    setFile(event.target.files[0]);
+    console.log('Selected file:', event.target.files[0]);
+  };
 
+  const handleClipClick = () => {
+    fileInputRef.current.click();  // Click the hidden file input
+  };
 
 
   return (
@@ -551,7 +561,10 @@ function ChatSection({ sideProfileCard, isSideProfileCard, delOptCardToggle }) {
             <form className='flex w-full' onSubmit={sendInputMessage}>
               <div className='flex bg-gray-300 gap-4 justify-center items-center px-5'>
                 <FontAwesomeIcon icon={faFaceSmile} className='text-white text-2xl' />
-                <FontAwesomeIcon icon={faPaperclip} className='text-white text-2xl' />
+
+                <FontAwesomeIcon icon={faPaperclip} className='text-white text-2xl' onClick={handleClipClick}/>
+                <input type="file"  className='hidden' ref={fileInputRef} onChange={handleFileChange} 
+                />
               </div>
 
               <input
