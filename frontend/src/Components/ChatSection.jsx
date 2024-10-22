@@ -31,13 +31,13 @@ function ChatSection({ sideProfileCard, isSideProfileCard, delOptCardToggle }) {
   const [isDelSelCardVisible, setIsDelSelCardVisible] = useState(false);
   const [inSelectMode, setSelectMode] = useState(false);
   const [selectedMsgs, setSelectedMsgs] = useState([]);
-  const [file, setFile] = useState(null);
+  const [selectedFiles, setSelectedFiles] = useState([]);
 
   //references we are using 
   const typingTimeoutRef = useRef(null);
   const lastMessageRef = useRef(null);
   const socket = useRef(null);
-  const fileInputRef = useRef(null); 
+  const fileInputRef = useRef(null);
 
 
   const typingObj = {
@@ -298,7 +298,7 @@ function ChatSection({ sideProfileCard, isSideProfileCard, delOptCardToggle }) {
           message: response.data.message,
           recipientId: currentChat._id
         }
-        
+
         socket.current.emit('sendMessage', messageData);
         setSendMessage('');
       }
@@ -411,19 +411,31 @@ function ChatSection({ sideProfileCard, isSideProfileCard, delOptCardToggle }) {
   }
 
   const handleFileChange = (event) => {
-    setFile(event.target.files[0]);
-    console.log('Selected file:', event.target.files[0]);
+    const files = Array.from(event.target.files);
+
+    const filePreviews = files.map((file) => {
+      console.log(file);
+      if (file.type.startsWith('image/') || file.type.startsWith('video/')) {
+        return { file, preview: URL.createObjectURL(file) }
+      } else {
+        return { file, preview: null }
+      }
+    })
+    setSelectedFiles(filePreviews);
+    console.log(filePreviews);
   };
+
 
   const handleClipClick = () => {
     fileInputRef.current.click();  // Click the hidden file input
   };
 
 
+
   return (
     <>
       {currentChat ?
-        (<div className='h-full'>
+        (<div className='h-full relative'>
           <div className='w-full bg-white border-b-2 border-gray-200 h-[10%] '>
 
             {inSelectMode ?
@@ -556,15 +568,50 @@ function ChatSection({ sideProfileCard, isSideProfileCard, delOptCardToggle }) {
             }
           </div>
 
+          {/* input area  */}
 
-          <div className='w-[97%] ml-3 bottom-2 flex rounded-lg overflow-hidden'>
+          <div className='w-[97%] ml-3 bottom-2 flex rounded-lg overflow-hidden '>
             <form className='flex w-full' onSubmit={sendInputMessage}>
               <div className='flex bg-gray-300 gap-4 justify-center items-center px-5'>
                 <FontAwesomeIcon icon={faFaceSmile} className='text-white text-2xl' />
 
-                <FontAwesomeIcon icon={faPaperclip} className='text-white text-2xl' onClick={handleClipClick}/>
-                <input type="file"  className='hidden' ref={fileInputRef} onChange={handleFileChange} 
+                <FontAwesomeIcon icon={faPaperclip} className='text-white text-2xl' onClick={handleClipClick} />
+                <input type="file" className='hidden' multiple accept='*' ref={fileInputRef} onChange={handleFileChange}
                 />
+                {selectedFiles.length > 0 &&
+                  (<div className='absolute flex flex-col p-4  bg-gray-200 border-black border-2 left-[2%] bottom-[8%] max-h-96'>
+                    <p className='font-medium text-sm'>{selectedFiles.length === 1 ? `Selected item...` : `Selected items(${selectedFiles.length})`}</p>
+                    <div className={`grid grid-cols-${selectedFiles.length >= 5 ? '5' : selectedFiles.length} gap-4 mt-4`}>
+                    {selectedFiles.map((fileObj, index) => (
+                        <div key={index} className="w-24 h-24 flex flex-col items-center flex-wrap ">
+
+                          {/* Show preview for images and videos */}
+                          {fileObj.preview && fileObj.file.type.startsWith("image/") && (
+                            <img
+                              src={fileObj.preview}
+                              alt={`Preview ${index}`}
+                              className="w-24 h-24 object-cover rounded-md"
+                            />
+                          )}
+                          {fileObj.preview && fileObj.file.type.startsWith("video/") && (
+                            <video
+                              src={fileObj.preview}
+                              controls
+                              className="w-24 h-24 object-cover rounded-md"
+                            />
+                          )}
+
+
+                          {/* Show file name for non-previewable files */}
+                          {!fileObj.preview && (
+                            <div className="w-24 text-center text-sm">
+                              <p>{fileObj.file.name}</p>
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>)}
               </div>
 
               <input
