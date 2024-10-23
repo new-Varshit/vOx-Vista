@@ -110,6 +110,8 @@ function ChatListing({ newChatCard }) {
         fetchActiveChatRooms();
     }, [currentChat]);
 
+    
+
     useEffect(() => {
         document.addEventListener('click', handleClickOutside);
 
@@ -117,6 +119,9 @@ function ChatListing({ newChatCard }) {
             document.removeEventListener('click', handleClickOutside);
         };
     }, []);
+
+
+
 
     return (
 

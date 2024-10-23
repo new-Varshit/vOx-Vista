@@ -8,8 +8,8 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { useSelector } from 'react-redux';
 import { useNavigate } from 'react-router-dom'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faFaceSmile, faPaperPlane, } from '@fortawesome/free-regular-svg-icons';
-import { faPaperclip, faPhone, faVideo, faCheck, faCheckDouble, faEllipsisV, faTrash, faCopy, faCheckSquare } from '@fortawesome/free-solid-svg-icons';
+import { faFaceSmile, faFilePowerpoint, faPaperPlane, } from '@fortawesome/free-regular-svg-icons';
+import { faPaperclip, faPhone, faVideo, faCheck, faCheckDouble, faEllipsisV, faTrash, faCopy, faCheckSquare, faFilePdf, faFileWord, faFileExcel, faFileAlt } from '@fortawesome/free-solid-svg-icons';
 
 function ChatSection({ sideProfileCard, isSideProfileCard, delOptCardToggle }) {
 
@@ -38,6 +38,7 @@ function ChatSection({ sideProfileCard, isSideProfileCard, delOptCardToggle }) {
   const lastMessageRef = useRef(null);
   const socket = useRef(null);
   const fileInputRef = useRef(null);
+  const previewRef = useRef(null);
 
 
   const typingObj = {
@@ -412,8 +413,21 @@ function ChatSection({ sideProfileCard, isSideProfileCard, delOptCardToggle }) {
 
   const handleFileChange = (event) => {
     const files = Array.from(event.target.files);
+    let validFiles = []
 
-    const filePreviews = files.map((file) => {
+    for (let file of files) {
+      if (file.size > 5 * 1024 * 1024) {
+        alert(`${file.name} exceeds the size limit of 5 MB`);
+        continue;
+      }
+      if (validFiles.length >= 5) {
+        alert(`You can select up to 5 files`);
+        break;
+      }
+      validFiles.push(file);
+    }
+
+    const filePreviews = validFiles.map((file) => {
       console.log(file);
       if (file.type.startsWith('image/') || file.type.startsWith('video/')) {
         return { file, preview: URL.createObjectURL(file) }
@@ -430,6 +444,28 @@ function ChatSection({ sideProfileCard, isSideProfileCard, delOptCardToggle }) {
     fileInputRef.current.click();  // Click the hidden file input
   };
 
+  const getFileIcon = (fileType) => {
+    if (fileType.includes("pdf")) return (<FontAwesomeIcon icon={faFilePdf} className='text-3xl ' style={{ color: '#FF0000' }} />)
+    if (fileType.includes("word")) return (<FontAwesomeIcon icon={faFileWord} className='text-3xl ' style={{ color: '#2B579A' }} />)
+    if (fileType.includes("excel")) return (<FontAwesomeIcon icon={faFileExcel} className='text-3xl ' style={{ color: '#217346' }} />)
+    if (fileType.includes("ppt") || fileType.endsWith(".pptx")) retrun(<FontAwesomeIcon icon={faFilePowerpoint} className='text-3xl ' style={{ color: '#217346' }} />)
+    return (<FontAwesomeIcon icon={faFileAlt} className='text-3xl' style={{ color: '#6B7280' }} />) // Generic icon for other files
+  };
+
+
+  useEffect(()=>{
+    const handleClickOutside =(event) =>{
+      if(previewRef.current && !previewRef.current.contains(event.target)){
+        setSelectedFiles([]);
+      }
+    };
+
+    document.addEventListener('mousedown',handleClickOutside);
+    return ()=>{
+      document.removeEventListener('mousedown',handleClickOutside)
+    }
+
+  },[previewRef]);
 
 
   return (
@@ -570,7 +606,7 @@ function ChatSection({ sideProfileCard, isSideProfileCard, delOptCardToggle }) {
 
           {/* input area  */}
 
-          <div className='w-[97%] ml-3 bottom-2 flex rounded-lg overflow-hidden '>
+          <div className='w-[97%] ml-3 bottom-2 flex rounded-lg overflow-hidden ' ref={previewRef}>
             <form className='flex w-full' onSubmit={sendInputMessage}>
               <div className='flex bg-gray-300 gap-4 justify-center items-center px-5'>
                 <FontAwesomeIcon icon={faFaceSmile} className='text-white text-2xl' />
@@ -579,10 +615,18 @@ function ChatSection({ sideProfileCard, isSideProfileCard, delOptCardToggle }) {
                 <input type="file" className='hidden' multiple accept='*' ref={fileInputRef} onChange={handleFileChange}
                 />
                 {selectedFiles.length > 0 &&
-                  (<div className='absolute flex flex-col p-4  bg-gray-200 border-black border-2 left-[2%] bottom-[8%] max-h-96'>
+                  (<div className='absolute flex flex-col p-4  bg-gray-200 border-black border-2 left-[2%] bottom-[8%] ' >
                     <p className='font-medium text-sm'>{selectedFiles.length === 1 ? `Selected item...` : `Selected items(${selectedFiles.length})`}</p>
-                    <div className={`grid grid-cols-${selectedFiles.length >= 5 ? '5' : selectedFiles.length} gap-4 mt-4`}>
-                    {selectedFiles.map((fileObj, index) => (
+                    <div className={`grid ${selectedFiles.length === 1
+                      ? 'grid-cols-1'
+                      : selectedFiles.length === 2
+                        ? 'grid-cols-2'
+                        : selectedFiles.length === 3
+                          ? 'grid-cols-3'
+                          : selectedFiles.length === 4
+                            ? 'grid-cols-4'
+                            : 'grid-cols-5'}  gap-4 mt-4`}>
+                      {selectedFiles.map((fileObj, index) => (
                         <div key={index} className="w-24 h-24 flex flex-col items-center flex-wrap ">
 
                           {/* Show preview for images and videos */}
@@ -604,8 +648,9 @@ function ChatSection({ sideProfileCard, isSideProfileCard, delOptCardToggle }) {
 
                           {/* Show file name for non-previewable files */}
                           {!fileObj.preview && (
-                            <div className="w-24 text-center text-sm">
-                              <p>{fileObj.file.name}</p>
+                            <div className="w-24 h-24 text-center p-1 rounded-md text-gray-600  text-sm font-medium  bg-gray-50 flex flex-col justify-center items-center">
+                              {getFileIcon(fileObj.file.type)}
+                              <p className='text-xs'>{fileObj.file.name}</p>
                             </div>
                           )}
                         </div>
@@ -617,7 +662,7 @@ function ChatSection({ sideProfileCard, isSideProfileCard, delOptCardToggle }) {
               <input
                 className='w-full py-4 px-2 focus:outline-none bg-gray-300'
                 type='text'
-                placeholder='Type a message...'
+                placeholder={selectedFiles.length>0 ? 'Add caption here (optional)' : 'Type a message...'}
                 value={sendMessage}
                 onChange={(e) => setSendMessage(e.target.value)}
                 onInput={handleTyping}
