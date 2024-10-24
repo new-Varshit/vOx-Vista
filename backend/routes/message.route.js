@@ -1,9 +1,10 @@
 import express from 'express';
 import {sendMessage, getMessagesByChatRoom,updateAllMsgsToDelivered,clrChatRoomMsgs,deleteSelectedMsgs,deleteMsgForEveryone, updateMsgsToRead,updateMsgToDelivered, updateMsgToRead} from '../controllers/message.controller.js'
+import { upload } from '../middlewares/fileUpload.middleware.js';
 
 const  router = express.Router();
 
-router.post('/sendMessage',sendMessage);
+router.post('/sendMessage',upload.array('attachments',5),sendMessage);
 
 router.post('/updateAllMsgsToDelivered',updateAllMsgsToDelivered);
 

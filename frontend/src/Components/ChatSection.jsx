@@ -284,14 +284,23 @@ function ChatSection({ sideProfileCard, isSideProfileCard, delOptCardToggle }) {
 
   //seding the message to the database  to store as well as to the socket.io server for dynamically sending...
   const sendInputMessage = async (e) => {
+    if(sendMessage || selectedFiles.length > 0){
     e.preventDefault();
 
-    let message = {
-      chatRoomId: currentChatRoom._id,
-      content: sendMessage
+    let message = new FormData();
+     message.append('chatRoomId',currentChatRoom._id),
+     message.append('content',sendMessage)
+
+     if (selectedFiles.length > 0) {
+      selectedFiles.forEach((fileObj, index) => {
+        message.append('attachments', fileObj.file); // Append each file with key 'attachments'
+      });
     }
     try {
       const response = await api.post('/api/message/sendMessage', message, {
+        headers: {
+          'Content-Type': 'multipart/form-data' // Ensure multipart/form-data is used for file uploads
+        },
         withCredentials: true
       });
       if (response.data.success) {
@@ -302,10 +311,14 @@ function ChatSection({ sideProfileCard, isSideProfileCard, delOptCardToggle }) {
 
         socket.current.emit('sendMessage', messageData);
         setSendMessage('');
+        setSelectedFiles([]);
       }
     } catch (err) {
       console.log(err);
     }
+  }else{
+    return ;
+  }
   }
 
 
@@ -453,19 +466,19 @@ function ChatSection({ sideProfileCard, isSideProfileCard, delOptCardToggle }) {
   };
 
 
-  useEffect(()=>{
-    const handleClickOutside =(event) =>{
-      if(previewRef.current && !previewRef.current.contains(event.target)){
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (previewRef.current && !previewRef.current.contains(event.target)) {
         setSelectedFiles([]);
       }
     };
 
-    document.addEventListener('mousedown',handleClickOutside);
-    return ()=>{
-      document.removeEventListener('mousedown',handleClickOutside)
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside)
     }
 
-  },[previewRef]);
+  }, [previewRef]);
 
 
   return (
@@ -662,7 +675,7 @@ function ChatSection({ sideProfileCard, isSideProfileCard, delOptCardToggle }) {
               <input
                 className='w-full py-4 px-2 focus:outline-none bg-gray-300'
                 type='text'
-                placeholder={selectedFiles.length>0 ? 'Add caption here (optional)' : 'Type a message...'}
+                placeholder={selectedFiles.length > 0 ? 'Add caption here (optional)' : 'Type a message...'}
                 value={sendMessage}
                 onChange={(e) => setSendMessage(e.target.value)}
                 onInput={handleTyping}

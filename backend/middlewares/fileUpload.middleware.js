@@ -1,4 +1,4 @@
 import multer from "multer";
 
 const storage = multer.memoryStorage();
-export const singleUpload = multer({storage});
+export const upload = multer({storage});

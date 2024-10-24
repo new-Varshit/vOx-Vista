@@ -1,35 +1,73 @@
 import { Message } from "../model/message.model.js";
 import { ChatRoom } from '../model/chatRoom.model.js';
-
+import cloudinary from '../utils/cloudinary.js';
+import getDataUri from '../utils/dataUri.js';
 
 // saving a message in the database 
 
 export const sendMessage = async (req, res) => {
   const { content, chatRoomId } = req.body;
   const senderId = req.id.userId;
-  let message;
+
+  let attachments = [];
+
+  // Optimize file handling: Upload all files concurrently using Promise.all
+  if (req.files && req.files.length > 0) {
+    try {
+      const uploadPromises = req.files.map(file => {
+        const uriData = getDataUri(file);
+        return cloudinary.uploader.upload(uriData.content, {
+          folder: 'vOx-Vista',
+        });
+      });
+
+      const cloudResponses = await Promise.all(uploadPromises);
+      console.log('cloud Responses :', cloudResponses);
+      attachments = cloudResponses.map(response => ({
+        url: response.secure_url,
+        public_id: response.public_id,
+      }));
+    } catch (err) {
+      console.log('error upper block:', err)
+      return res.status(500).json({
+        success: false,
+        message: 'Failed to upload files to Cloudinary',
+        err,
+      });
+    }
+  }
+
   try {
-    message = await Message.create({
+    // Create the message and update the chat room in one go
+    const message = await Message.create({
       content,
       sender: senderId,
       chatRoom: chatRoomId,
-      status: 'sent'
+      attachments,
+      status: 'sent',
     });
-    message = await message.populate('sender');
 
-    await ChatRoom.findByIdAndUpdate(chatRoomId,{ deletedFor: [],lastMessage:message._id}); 
+    await ChatRoom.findByIdAndUpdate(chatRoomId, {
+      $set: {
+        deletedFor: [],
+        lastMessage: message._id,
+      },
+    });
 
+    // Populate sender details, using lean to return a plain JS object for better performance
+    const populatedMessage = await message.populate('sender');
 
-    res.status(200).json({ success: true, message });
+    res.status(200).json({ success: true, message: populatedMessage });
   } catch (err) {
+    console.log('error lower block:', err)
     return res.status(500).json({
       success: false,
       message: 'Failed to send message',
-      err
-    })
+      err,
+    });
   }
+};
 
-}
 
 
 // getting all the messages of a chatRoom 
@@ -135,6 +173,11 @@ export const updateMsgToRead = async (req, res) => {
 
 
 
+
+
+
+
+
 // helping function, getting all the chatrooms in which the user is a member 
 
 const getChatRoomsForUser = async (userId) => {
@@ -145,16 +188,47 @@ const getChatRoomsForUser = async (userId) => {
 };
 
 
+
+
+
+
+
+
+
 export const deleteSelectedMsgs = async (req, res) => {
   const userId = req.id.userId;
   const { selectedMsgs } = req.body;
-  console.log(selectedMsgs);
-  console.log(userId);
+  
   try {
+    // 1. Add the userId to the deletedFor array
     await Message.updateMany(
       { _id: { $in: selectedMsgs } },  // Find all messages with the given IDs
       { $addToSet: { deletedFor: userId } } // Add userId to deletedFor array, avoiding duplicates
     );
+
+    // 2. Find messages where both users have marked it for deletion
+    const msgs = await Message.find({
+      _id: { $in: selectedMsgs },
+      $expr: {
+        $and: [
+          { $eq: [{ $size: "$deletedFor" }, 2] },  // Ensures deletedFor has exactly 2 elements
+          { $in: [userId, "$deletedFor"] }         // Ensures userId is in the deletedFor array
+        ]
+      }
+    });
+
+    // 3. Delete attachments from Cloudinary
+    for (const msg of msgs) {
+      if (msg.attachments && msg.attachments.length > 0) {
+        const deletePromises = msg.attachments.map(attachment => {
+          return cloudinary.uploader.destroy(attachment.public_id);
+        });
+        // Await the completion of all deletion promises
+        await Promise.all(deletePromises);
+      }
+    }
+
+    // 4. Delete messages from the database after Cloudinary cleanup
     await Message.deleteMany({
       _id: { $in: selectedMsgs },
       $expr: {
@@ -171,24 +245,69 @@ export const deleteSelectedMsgs = async (req, res) => {
     });
   } catch (err) {
     console.log(err);
+    return res.status(500).json({
+      success: false,
+      message: 'Error deleting messages',
+      err
+    });
   }
-}
+};
+
+
+
+
+
+
+
+
+
 
 //deleting a message for everyone in a chatroom
 
 export const deleteMsgForEveryone = async (req, res) => {
   const msgId = req.params.msgId;
   try {
-    const deletedMessage = await Message.findByIdAndDelete(msgId, { new: true });
+    // Find the message by its ID
+    const msg = await Message.findById(msgId);
+
+    if (!msg) {
+      return res.status(404).json({
+        success: false,
+        message: "Message not found"
+      });
+    }
+
+    // Delete attachments from Cloudinary if any
+    if (msg.attachments && msg.attachments.length > 0) {
+      const deletePromises = msg.attachments.map(attachment => {
+        return cloudinary.uploader.destroy(attachment.public_id);
+      });
+
+      // Use Promise.all to delete all attachments concurrently
+      const results = await Promise.all(deletePromises);
+      console.log('Deletion results:', results); // This will log the results of the deletion
+    }
+
+    // Delete the message from the database
+    await Message.findByIdAndDelete(msgId);
 
     return res.status(200).json({
       success: true,
       message: "Message has been deleted permanently for everyone"
     });
   } catch (err) {
-    console.log(err);
+    console.error('Error deleting message or attachments:', err);
+    return res.status(500).json({
+      success: false,
+      message: "Error deleting message or attachments",
+      error: err.message
+    });
   }
-}
+};
+
+
+
+
 
 //deleting all the messges of a chatroom  for a the user only 
 
@@ -198,6 +317,30 @@ export const clrChatRoomMsgs = async (req, res) => {
 
   try {
     const result = await Message.updateMany({ chatRoom: chatRoomId, deletedFor: { $ne: userId } }, { $addToSet: { deletedFor: userId } });
+
+     //  Find messages where both users have marked it for deletion
+     const msgs = await Message.find({
+      _id: { $in: selectedMsgs },
+      $expr: {
+        $and: [
+          { $eq: [{ $size: "$deletedFor" }, 2] },  // Ensures deletedFor has exactly 2 elements
+          { $in: [userId, "$deletedFor"] }         // Ensures userId is in the deletedFor array
+        ]
+      }
+    });
+
+    //  Delete attachments from Cloudinary
+    for (const msg of msgs) {
+      if (msg.attachments && msg.attachments.length > 0) {
+        const deletePromises = msg.attachments.map(attachment => {
+          return cloudinary.uploader.destroy(attachment.public_id);
+        });
+        // Await the completion of all deletion promises
+        await Promise.all(deletePromises);
+      }
+    }
+
+
     await Message.deleteMany({
       chatRoom: chatRoomId,
       $expr: {
