@@ -16,7 +16,6 @@ export const updateProfile = async (req, res) => {
                 profilePic = cloudResponse.secure_url;
     }
     
-
     const userId = req.id.userId;
     try {
         const updatedProfile = await User.findByIdAndUpdate(userId , {

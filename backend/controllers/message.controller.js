@@ -16,23 +16,31 @@ export const sendMessage = async (req, res) => {
     try {
       const uploadPromises = req.files.map(file => {
         const uriData = getDataUri(file);
+
+        // Upload with optimized settings for different file types
         return cloudinary.uploader.upload(uriData.content, {
-          folder: 'vOx-Vista',
+          public_id: `vOx-Vista/${file.originalname}`,
+          resource_type: 'auto',          // Auto-detect file type (image, video, pdf, etc.)
+          use_filename: true,
+          unique_filename: false,         // Keep original file name
+          type: "authenticated"            // Option for access control
         });
       });
 
       const cloudResponses = await Promise.all(uploadPromises);
-      console.log('cloud Responses :', cloudResponses);
+
+      // Map responses to include secure URL and public_id
       attachments = cloudResponses.map(response => ({
         url: response.secure_url,
         public_id: response.public_id,
       }));
+      console.log(attachments);
     } catch (err) {
-      console.log('error upper block:', err)
+      console.log('File upload error:', err);
       return res.status(500).json({
         success: false,
         message: 'Failed to upload files to Cloudinary',
-        err,
+        error: err,
       });
     }
   }
@@ -54,16 +62,16 @@ export const sendMessage = async (req, res) => {
       },
     });
 
-    // Populate sender details, using lean to return a plain JS object for better performance
+    // Populate sender details
     const populatedMessage = await message.populate('sender');
 
     res.status(200).json({ success: true, message: populatedMessage });
   } catch (err) {
-    console.log('error lower block:', err)
+    console.log('Message creation error:', err);
     return res.status(500).json({
       success: false,
       message: 'Failed to send message',
-      err,
+      error: err,
     });
   }
 };
