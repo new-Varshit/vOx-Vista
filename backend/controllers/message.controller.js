@@ -11,30 +11,27 @@ export const sendMessage = async (req, res) => {
 
   let attachments = [];
 
-  // Optimize file handling: Upload all files concurrently using Promise.all
   if (req.files && req.files.length > 0) {
     try {
       const uploadPromises = req.files.map(file => {
         const uriData = getDataUri(file);
 
-        // Upload with optimized settings for different file types
         return cloudinary.uploader.upload(uriData.content, {
-          public_id: `vOx-Vista/${file.originalname}`,
-          resource_type: 'auto',          // Auto-detect file type (image, video, pdf, etc.)
-          use_filename: true,
-          unique_filename: false,         // Keep original file name
-          type: "authenticated"            // Option for access control
+          folder: 'vOx-Vista',
+          resource_type: 'auto',   // Automatically detect the file type (image, pdf, etc.)
+          type: 'upload',
+          use_filename: true       // Ensure it’s publicly accessible
         });
       });
 
       const cloudResponses = await Promise.all(uploadPromises);
 
-      // Map responses to include secure URL and public_id
+      // Collect the URLs to send back in the response
       attachments = cloudResponses.map(response => ({
-        url: response.secure_url,
+        url: response.secure_url,   // Direct URL for the resource
         public_id: response.public_id,
       }));
-      console.log(attachments);
+      console.log('Attachments:', attachments);
     } catch (err) {
       console.log('File upload error:', err);
       return res.status(500).json({
@@ -46,7 +43,6 @@ export const sendMessage = async (req, res) => {
   }
 
   try {
-    // Create the message and update the chat room in one go
     const message = await Message.create({
       content,
       sender: senderId,
@@ -62,7 +58,6 @@ export const sendMessage = async (req, res) => {
       },
     });
 
-    // Populate sender details
     const populatedMessage = await message.populate('sender');
 
     res.status(200).json({ success: true, message: populatedMessage });
@@ -75,6 +70,7 @@ export const sendMessage = async (req, res) => {
     });
   }
 };
+
 
 
 

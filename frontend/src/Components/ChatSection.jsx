@@ -2,6 +2,7 @@ import React from 'react';
 import { jwtDecode } from 'jwt-decode';
 import { format } from 'date-fns';
 import profilePic from '../assets/profilePic.jpg';
+import FilesInChat from './FilesInChat';  
 import api from '../utils/Api';
 import { io } from 'socket.io-client';
 import { useState, useEffect, useRef, useCallback } from 'react';
@@ -284,41 +285,41 @@ function ChatSection({ sideProfileCard, isSideProfileCard, delOptCardToggle }) {
 
   //seding the message to the database  to store as well as to the socket.io server for dynamically sending...
   const sendInputMessage = async (e) => {
-    if(sendMessage || selectedFiles.length > 0){
-    e.preventDefault();
+    if (sendMessage || selectedFiles.length > 0) {
+      e.preventDefault();
 
-    let message = new FormData();
-     message.append('chatRoomId',currentChatRoom._id),
-     message.append('content',sendMessage)
+      let message = new FormData();
+      message.append('chatRoomId', currentChatRoom._id),
+        message.append('content', sendMessage)
 
-     if (selectedFiles.length > 0) {
-      selectedFiles.forEach((fileObj, index) => {
-        message.append('attachments', fileObj.file); // Append each file with key 'attachments'
-      });
-    }
-    try {
-      const response = await api.post('/api/message/sendMessage', message, {
-        headers: {
-          'Content-Type': 'multipart/form-data' // Ensure multipart/form-data is used for file uploads
-        },
-        withCredentials: true
-      });
-      if (response.data.success) {
-        let messageData = {
-          message: response.data.message,
-          recipientId: currentChat._id
-        }
-
-        socket.current.emit('sendMessage', messageData);
-        setSendMessage('');
-        setSelectedFiles([]);
+      if (selectedFiles.length > 0) {
+        selectedFiles.forEach((fileObj, index) => {
+          message.append('attachments', fileObj.file); // Append each file with key 'attachments'
+        });
       }
-    } catch (err) {
-      console.log(err);
+      try {
+        const response = await api.post('/api/message/sendMessage', message, {
+          headers: {
+            'Content-Type': 'multipart/form-data' // Ensure multipart/form-data is used for file uploads
+          },
+          withCredentials: true
+        });
+        if (response.data.success) {
+          let messageData = {
+            message: response.data.message,
+            recipientId: currentChat._id
+          }
+
+          socket.current.emit('sendMessage', messageData);
+          setSendMessage('');
+          setSelectedFiles([]);
+        }
+      } catch (err) {
+        console.log(err);
+      }
+    } else {
+      return;
     }
-  }else{
-    return ;
-  }
   }
 
 
@@ -486,7 +487,6 @@ function ChatSection({ sideProfileCard, isSideProfileCard, delOptCardToggle }) {
       {currentChat ?
         (<div className='h-full relative'>
           <div className='w-full bg-white border-b-2 border-gray-200 h-[10%] '>
-
             {inSelectMode ?
               (<div className='flex justify-between items-center gap-2 py-4 ml-7 w-11/12'>
 
@@ -536,21 +536,26 @@ function ChatSection({ sideProfileCard, isSideProfileCard, delOptCardToggle }) {
           <div className=' h-[83%] bg-white overflow-y-scroll scroll-smooth scrollbar-thin scrollbar-thumb-white scrollbar-track-white rounded-r-xl p-4  flex flex-col gap-0.5' >
 
 
+            {/* message section -->  */}
+
 
             {
               messages.map((message, index) => (
                 message?.content ? (
                   <div key={message._id} ref={index === messages.length - 1 ? lastMessageRef : null} className={`${selectedMsgs.includes(message._id) ? 'bg-blue-300  bg-opacity-50' : ''}`} onClick={() => inSelectMode && toggleSelectMessage(message._id)}>
-                    {message?.sender?._id === currentChat._id
+                    {message?.sender?._id !== userId
                       ? (
                         <div className='flex gap-1 group mt-1'>
                           <img className='rounded-full w-7 h-7 flex' src={message?.sender?.profile?.profilePic} alt="error" />
+                          {message?.attachments?.length > 0 && <FilesInChat  attachments = {message?.attachments}  />}
                           <div className='bg-gray-200 text-gray-800 max-w-[70%] pt-2 pb-1 px-2 flex flex-col items-center justify-center rounded-md'>
                             <p className=' text-gray-800 text-sm  font-medium -mb-2 mr-12'>{message.content}</p>
                             <div className='flex  w-full justify-end'>
                               <p className='text-[10px] '>{format(new Date(message?.createdAt), 'HH:mm')}</p>
                             </div>
                           </div>
+
+
                           {!inSelectMode &&
                             (<div className={`bg-gray-200 w-[2%]  ${isDelSelCardVisible === message._id ? 'flex' : 'hidden group-hover:flex'}  justify-center items-center rounded-r-xl relative curson-pointer`} onClick={(e) => handleDelSelCard(message._id, e)}>
                               {isDelSelCardVisible === message._id && (
@@ -571,11 +576,12 @@ function ChatSection({ sideProfileCard, isSideProfileCard, delOptCardToggle }) {
 
                               )};
                               <FontAwesomeIcon icon={faEllipsisV} className='text-gray-700 text-xl cursor-pointer' />
-                            </div>)}
+                            </div>)
+                          }
                         </div>
-
                       )
-                      : (
+                      :
+                      (
                         <div className=' flex gap-1 justify-end group  mt-1 ' >
                           {!inSelectMode &&
 
@@ -598,15 +604,17 @@ function ChatSection({ sideProfileCard, isSideProfileCard, delOptCardToggle }) {
 
                               )};
                               <FontAwesomeIcon icon={faEllipsisV} className='text-gray-700 text-xl cursor-pointer' />
-                            </div>)}
+                            </div>)
+                          }
                           <div className='bg-anotherPrimary text-sm max-w-[70%] text-white pt-2 pb-1 px-2 flex flex-col items-center justify-center rounded-md'>
+                               {message?.attachments?.length > 0 && <FilesInChat/>}
+
                             <p className='text-sm text-white font-medium -mb-2 mr-16'>{message.content}</p>
                             <div className='flex gap-2 w-full justify-end'>
                               <p className='text-[10px] text-gray-300'>{format(new Date(message?.createdAt), 'HH:mm')}</p>
                               <p>{statusCheck(message?.status)}</p>
                             </div>
                           </div>
-
                           <img className='rounded-full w-7 h-7 flex' src={message?.sender?.profile?.profilePic} alt="error" loading="lazy" />
                         </div>
                       )
@@ -616,6 +624,8 @@ function ChatSection({ sideProfileCard, isSideProfileCard, delOptCardToggle }) {
               ))
             }
           </div>
+
+
 
           {/* input area  */}
 
