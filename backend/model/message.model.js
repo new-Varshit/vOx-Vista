@@ -36,6 +36,10 @@ const messageSchema = new mongoose.Schema({
             type: String,
             required: true,
           },
+          mimeType:{
+            type:String,
+            required:true
+          }
         },
       ],
 

@@ -305,6 +305,7 @@ function ChatSection({ sideProfileCard, isSideProfileCard, delOptCardToggle }) {
           withCredentials: true
         });
         if (response.data.success) {
+          console.log(response.data.message);
           let messageData = {
             message: response.data.message,
             recipientId: currentChat._id
@@ -398,9 +399,11 @@ function ChatSection({ sideProfileCard, isSideProfileCard, delOptCardToggle }) {
 
       if (response.data.success) {
         console.log('done bhai ');
-        if (msgId) {
+        if (typeof msgId === 'string') {
+          console.log(msgId)
           setMessages(prevMsgs => prevMsgs.filter(mssg => mssg._id !== msgId));
         } else {
+          console.log('yo you selected msgs to delete')
           setMessages(prevMsgs => prevMsgs.filter(mssg => !selectedMsgs.includes(mssg._id)));
           handleCancelSelection();
         }
@@ -541,16 +544,16 @@ function ChatSection({ sideProfileCard, isSideProfileCard, delOptCardToggle }) {
 
             {
               messages.map((message, index) => (
-                message?.content ? (
+                message?.content || message.attachments.length > 0  ? (
                   <div key={message._id} ref={index === messages.length - 1 ? lastMessageRef : null} className={`${selectedMsgs.includes(message._id) ? 'bg-blue-300  bg-opacity-50' : ''}`} onClick={() => inSelectMode && toggleSelectMessage(message._id)}>
                     {message?.sender?._id !== userId
                       ? (
                         <div className='flex gap-1 group mt-1'>
                           <img className='rounded-full w-7 h-7 flex' src={message?.sender?.profile?.profilePic} alt="error" />
-                          {message?.attachments?.length > 0 && <FilesInChat  attachments = {message?.attachments}  />}
-                          <div className='bg-gray-200 text-gray-800 max-w-[70%] pt-2 pb-1 px-2 flex flex-col items-center justify-center rounded-md'>
-                            <p className=' text-gray-800 text-sm  font-medium -mb-2 mr-12'>{message.content}</p>
-                            <div className='flex  w-full justify-end'>
+                          <div className='bg-gray-200 text-gray-800 max-w-[70%] pt-2 pb-1 px-2 flex flex-col  justify-center rounded-md'>
+                          {message?.attachments?.length > 0 && <FilesInChat  attachments = {message?.attachments} getFileIcon={getFileIcon}  />}
+                            <p className=' text-gray-800 text-sm   font-medium -mb-2 mr-12'>{message.content}</p>
+                            <div className={`flex  w-full justify-end ${message?.attachments?.length > 0 && 'mt-2'}`}>
                               <p className='text-[10px] '>{format(new Date(message?.createdAt), 'HH:mm')}</p>
                             </div>
                           </div>
@@ -606,11 +609,11 @@ function ChatSection({ sideProfileCard, isSideProfileCard, delOptCardToggle }) {
                               <FontAwesomeIcon icon={faEllipsisV} className='text-gray-700 text-xl cursor-pointer' />
                             </div>)
                           }
-                          <div className='bg-anotherPrimary text-sm max-w-[70%] text-white pt-2 pb-1 px-2 flex flex-col items-center justify-center rounded-md'>
-                               {message?.attachments?.length > 0 && <FilesInChat/>}
+                          <div className='bg-anotherPrimary text-sm max-w-[70%] text-white pt-2 pb-1 px-2 flex flex-col  justify-center rounded-md'>
+                          {message?.attachments?.length > 0 && <FilesInChat  attachments = {message?.attachments} getFileIcon={getFileIcon}  />}
 
                             <p className='text-sm text-white font-medium -mb-2 mr-16'>{message.content}</p>
-                            <div className='flex gap-2 w-full justify-end'>
+                            <div className={`flex gap-2 w-full justify-end ${message?.attachments?.length > 0 && 'mt-2'}`}>
                               <p className='text-[10px] text-gray-300'>{format(new Date(message?.createdAt), 'HH:mm')}</p>
                               <p>{statusCheck(message?.status)}</p>
                             </div>

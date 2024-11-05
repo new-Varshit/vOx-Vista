@@ -56,7 +56,7 @@ io.on('connection', async (socket) => {
         if (userId && messageData.recipientId) {
             io.to(messageData.recipientId).emit('receiveMessage', messageData.message);
         }
-        console.log('Message received from client:', messageData);
+        // console.log('Message received from client:', messageData);
     });
 
     socket.on('leavePersonalRoom', (personalRoom) => {

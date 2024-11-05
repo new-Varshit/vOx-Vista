@@ -10,6 +10,8 @@ export const sendMessage = async (req, res) => {
   const senderId = req.id.userId;
 
   let attachments = [];
+ 
+   console.log(req.files);
 
   if (req.files && req.files.length > 0) {
     try {
@@ -27,11 +29,15 @@ export const sendMessage = async (req, res) => {
       const cloudResponses = await Promise.all(uploadPromises);
 
       // Collect the URLs to send back in the response
-      attachments = cloudResponses.map(response => ({
+      attachments = cloudResponses.map((response,index) => ({
         url: response.secure_url,   // Direct URL for the resource
         public_id: response.public_id,
+        mimeType: req.files[index].mimetype
       }));
-      console.log('Attachments:', attachments);
+
+
+
+      // console.log('Attachments:', attachments);
     } catch (err) {
       console.log('File upload error:', err);
       return res.status(500).json({
@@ -289,7 +295,7 @@ export const deleteMsgForEveryone = async (req, res) => {
 
       // Use Promise.all to delete all attachments concurrently
       const results = await Promise.all(deletePromises);
-      console.log('Deletion results:', results); // This will log the results of the deletion
+      // console.log('Deletion results:', results); // This will log the results of the deletion
     }
 
     // Delete the message from the database

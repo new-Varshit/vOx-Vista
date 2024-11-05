@@ -18,7 +18,7 @@ export const createOrGetChatRoom = async (req, res) => {
         }
 
         chatRoom = await chatRoom.populate('lastMessage');
-        console.log('your chat room :', chatRoom);
+        // console.log('your chat room :', chatRoom);
         return res.status(200).json({
             success: true,
             chatRoom
@@ -34,7 +34,7 @@ export const createOrGetChatRoom = async (req, res) => {
 
 export const getAllChatRooms = async (req, res) => {
     const userId = req.id.userId;
-    console.log('the user id is : ', userId);
+    // console.log('the user id is : ', userId);
     try {
         const chats = await ChatRoom.find({
             members: { $in: [userId] }
@@ -81,7 +81,7 @@ const getNumberOfUnreadMsgs = async (chatRoomId, receiverId) => {
             sender: receiverId,
             status: { $ne: 'read' }
         });
-        console.log('Unread messages:', unreadMsgsCount);
+        // console.log('Unread messages:', unreadMsgsCount);
         return unreadMsgsCount;
     } catch (err) {
         console.error('Error counting unread messages:', err);
