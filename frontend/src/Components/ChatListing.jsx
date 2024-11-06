@@ -17,6 +17,7 @@ function ChatListing({ newChatCard }) {
 
     const [activeChatRooms, setActiveChatRooms] = useState([]);
     const [isChatMenuVisible, setIsChatMenuVisible] = useState(null);
+    const [searchChatRoom,setSearchChatRoom] = useState('');
 
     const currentChat = useSelector((state) => state.chat.currentChat);
     const currentChatRoom = useSelector((state) => state.chatRoom.currentChatRoom);
@@ -26,7 +27,30 @@ function ChatListing({ newChatCard }) {
     const dispatch = useDispatch();
 
 
+    // const handleSearchUser = () =>{
+             
+    // }
 
+     
+    useEffect(()=>{
+        if (!searchChatRoom.trim()) {
+            return;
+        } 
+        const searchActiveUser =async () => {
+             try{
+            const response = await api.get('/api/chatRoom/searchActiveChatRoom',{
+                params: {searchChatRoom},
+                withCredentials:true
+            })
+           if(response.data.success){
+                setActiveChatRooms(response.data.chatRooms);
+            }
+             }catch(err){
+                console.log(err);
+             }
+        } 
+        searchActiveUser();
+    },[searchChatRoom])
 
 
     const handleChatClick = async (newChat) => {
@@ -100,7 +124,6 @@ function ChatListing({ newChatCard }) {
                 });
                 if (response.data.success) {
                     console.log(response.data.chatRooms);
-                    console.log(response.data.chatRooms);
                     setActiveChatRooms(response.data.chatRooms.filter(chatRoom => !chatRoom.deletedFor.includes(userId)));
                 }
             } catch (err) {
@@ -140,7 +163,7 @@ function ChatListing({ newChatCard }) {
                 <button className='bg-white p-1 px-3 border-l '>
                     <FontAwesomeIcon icon={faSearch} className="text-gray-300" />
                 </button>
-                <input type="text" className='text-sm bg-white focus:outline-none py-3 w-full text-gray-600' placeholder='Search...' />
+                <input type="text" className='text-sm bg-white focus:outline-none py-3 w-full text-gray-600' onChange={(e)=>setSearchChatRoom(e.target.value)}  placeholder='Search...' />
             </div>
 
             {/* Scrollable chat listing */}

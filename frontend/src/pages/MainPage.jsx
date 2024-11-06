@@ -96,6 +96,8 @@ function MainPage() {
                 const response = await api.get('/api/auth/check-session', {
                     withCredentials: true
                 })
+                    console.log('Session check response:', response);
+
                 if (response.data.success) {
                     dispatch(logIn(response.data.userId));
                     setProfileData(response.data.profileData);

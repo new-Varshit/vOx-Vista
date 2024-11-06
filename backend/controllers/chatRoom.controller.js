@@ -116,3 +116,49 @@ export const dltChatRoom = async (req, res) => {
     }
 }
 
+export const searchActiveChatRoom = async(req,res) =>{
+    const userId = req.id.userId;
+    const {searchChatRoom} =  req.query;
+    // if(!searchChatRoom){
+    //     getAllChatRooms();
+    // }
+    try{
+        let chatRooms = await ChatRoom.find({
+            members: { $in: [userId] },
+        }).populate('members').populate('lastMessage');
+
+        console.log('before promises',chatRooms)
+
+        const chatRoomsPromises = chatRooms.map(async chat => {
+
+            const receiverProfile = chat.members.find(member =>String(member._id) !== String(userId) && member.userName?.toLowerCase().startsWith(searchChatRoom.toLowerCase()));
+            if(!receiverProfile){
+                return null;
+            }
+            const unreadMsgs = await getNumberOfUnreadMsgs(chat._id, receiverProfile?._id);
+            let lastMessage = await Message.findOne({
+                chatRoom: chat._id,
+                deletedFor: { $ne: userId }
+            }).sort({ createdAt: -1 });
+            return {
+                ...chat.toObject(),
+                receiver: receiverProfile,
+                unreadMsgs,
+                lastMessage
+            }
+        });
+
+        
+         chatRooms = (await Promise.all(chatRoomsPromises)).filter(chatRoom => chatRoom !== null  );
+     
+         console.log('after promises',chatRooms);
+
+         return res.status(200).json({
+            success:true,
+            chatRooms,
+            message:'successfully fetched searched active chatRooms'
+         })
+    }catch(err){
+        console.log(err);
+    }
+}

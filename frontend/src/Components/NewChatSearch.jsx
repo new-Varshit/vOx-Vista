@@ -15,6 +15,7 @@ function NewChatSearch({ newChatCard }) {
     const [searchInput, setSearchInput] = useState('');
     const [message, setMessage] = useState('');
 
+    
     const handleClick = (e) => {
         if (e.target === e.currentTarget) {
             newChatCard();
