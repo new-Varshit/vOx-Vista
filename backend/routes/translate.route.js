@@ -1,0 +1,7 @@
+import express from 'express'
+import {translateMsg,getListOfLanguages} from '../controllers/translate.controller.js';
+const router = express.Router();
+
+router.post('/',translateMsg);
+
+router.get('/',getListOfLanguages);

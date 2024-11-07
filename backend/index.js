@@ -8,6 +8,7 @@ import connectDB from './utils/db.js';
 import userRoutes from './routes/user.route.js';
 import messageRoutes from './routes/message.route.js'
 import authRoutes from './routes/auth.route.js';
+import translateRoutes from './routes/translate.route.js';
 import chatRoomRoutes from './routes/chatRoom.route.js';
 import { auth } from './middlewares/auth.middleware.js';
 import { Message } from './model/message.model.js';
@@ -40,7 +41,7 @@ app.use('/api/user', auth, userRoutes);
 app.use('/api/auth', authRoutes);
 app.use('/api/chatRoom', auth, chatRoomRoutes);
 app.use('/api/message', auth, messageRoutes);
-
+app.use('/api/translate',auth,translateRoutes);
 
 io.on('connection', async (socket) => {
     const userId = socket.handshake.query.userId;
