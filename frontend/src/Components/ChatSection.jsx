@@ -2,11 +2,13 @@ import React from 'react';
 import { jwtDecode } from 'jwt-decode';
 import { format } from 'date-fns';
 import profilePic from '../assets/profilePic.jpg';
-import FilesInChat from './FilesInChat';  
+import FilesInChat from './FilesInChat';
 import api from '../utils/Api';
 import { io } from 'socket.io-client';
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useSelector } from 'react-redux';
+import Picker from '@emoji-mart/react';
+
 import { useNavigate } from 'react-router-dom'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faFaceSmile, faFilePowerpoint, faPaperPlane, } from '@fortawesome/free-regular-svg-icons';
@@ -33,6 +35,7 @@ function ChatSection({ sideProfileCard, isSideProfileCard, delOptCardToggle }) {
   const [inSelectMode, setSelectMode] = useState(false);
   const [selectedMsgs, setSelectedMsgs] = useState([]);
   const [selectedFiles, setSelectedFiles] = useState([]);
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
 
   //references we are using 
   const typingTimeoutRef = useRef(null);
@@ -485,6 +488,11 @@ function ChatSection({ sideProfileCard, isSideProfileCard, delOptCardToggle }) {
   }, [previewRef]);
 
 
+  const addEmoji = (emoji) => {
+    setSendMessage(sendMessage + emoji.native); // Append the selected emoji to the message
+    // setShowEmojiPicker(false); // Close the emoji picker after selecting an emoji
+};
+
   return (
     <>
       {currentChat ?
@@ -544,14 +552,14 @@ function ChatSection({ sideProfileCard, isSideProfileCard, delOptCardToggle }) {
 
             {
               messages.map((message, index) => (
-                message?.content || message.attachments.length > 0  ? (
+                message?.content || message.attachments.length > 0 ? (
                   <div key={message._id} ref={index === messages.length - 1 ? lastMessageRef : null} className={`${selectedMsgs.includes(message._id) ? 'bg-blue-300  bg-opacity-50' : ''}`} onClick={() => inSelectMode && toggleSelectMessage(message._id)}>
                     {message?.sender?._id !== userId
                       ? (
                         <div className='flex gap-1 group mt-1'>
                           <img className='rounded-full w-7 h-7 flex' src={message?.sender?.profile?.profilePic} alt="error" />
                           <div className='bg-gray-200 text-gray-800 max-w-[70%] pt-2 pb-1 px-2 flex flex-col  justify-center rounded-md'>
-                          {message?.attachments?.length > 0 && <FilesInChat  attachments = {message?.attachments} getFileIcon={getFileIcon}  />}
+                            {message?.attachments?.length > 0 && <FilesInChat attachments={message?.attachments} getFileIcon={getFileIcon} />}
                             <p className=' text-gray-800 text-sm   font-medium -mb-2 mr-12'>{message.content}</p>
                             <div className={`flex  w-full justify-end ${message?.attachments?.length > 0 && 'mt-2'}`}>
                               <p className='text-[10px] '>{format(new Date(message?.createdAt), 'HH:mm')}</p>
@@ -610,7 +618,7 @@ function ChatSection({ sideProfileCard, isSideProfileCard, delOptCardToggle }) {
                             </div>)
                           }
                           <div className='bg-anotherPrimary text-sm max-w-[70%] text-white pt-2 pb-1 px-2 flex flex-col  justify-center rounded-md'>
-                          {message?.attachments?.length > 0 && <FilesInChat  attachments = {message?.attachments} getFileIcon={getFileIcon}  />}
+                            {message?.attachments?.length > 0 && <FilesInChat attachments={message?.attachments} getFileIcon={getFileIcon} />}
 
                             <p className='text-sm text-white font-medium -mb-2 mr-16'>{message.content}</p>
                             <div className={`flex gap-2 w-full justify-end ${message?.attachments?.length > 0 && 'mt-2'}`}>
@@ -635,8 +643,12 @@ function ChatSection({ sideProfileCard, isSideProfileCard, delOptCardToggle }) {
           <div className='w-[97%] ml-3 bottom-2 flex rounded-lg overflow-hidden ' ref={previewRef}>
             <form className='flex w-full' onSubmit={sendInputMessage}>
               <div className='flex bg-gray-300 gap-4 justify-center items-center px-5'>
-                <FontAwesomeIcon icon={faFaceSmile} className='text-white text-2xl' />
 
+                <FontAwesomeIcon icon={faFaceSmile} className='text-white text-2xl' onClick={() => setShowEmojiPicker(!showEmojiPicker)} />
+                {showEmojiPicker &&
+                  (<div className='absolute bottom-[8%] left-[2%]'>
+                    <Picker onEmojiSelect={addEmoji}/>
+                  </div>)}
                 <FontAwesomeIcon icon={faPaperclip} className='text-white text-2xl' onClick={handleClipClick} />
                 <input type="file" className='hidden' multiple accept='*' ref={fileInputRef} onChange={handleFileChange}
                 />

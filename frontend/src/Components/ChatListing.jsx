@@ -25,12 +25,6 @@ function ChatListing({ newChatCard }) {
     const menuRef = useRef(null);
 
     const dispatch = useDispatch();
-
-
-    // const handleSearchUser = () =>{
-             
-    // }
-
      
     useEffect(()=>{
         if (!searchChatRoom.trim()) {
