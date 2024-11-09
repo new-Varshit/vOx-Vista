@@ -8,7 +8,7 @@ import { io } from 'socket.io-client';
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useSelector } from 'react-redux';
 import Picker from '@emoji-mart/react';
-
+import Translation from './Translation';
 import { useNavigate } from 'react-router-dom'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faFaceSmile, faFilePowerpoint, faPaperPlane, } from '@fortawesome/free-regular-svg-icons';
@@ -532,6 +532,7 @@ function ChatSection({ sideProfileCard, isSideProfileCard, delOptCardToggle }) {
 
                 {!isSideProfileCard && (
                   <div className='flex gap-4'>
+                      <Translation/>
                     <div>
                       <FontAwesomeIcon icon={faPhone} className='  text-gray-400 text-xl' />
                     </div>

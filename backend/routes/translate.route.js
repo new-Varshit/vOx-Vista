@@ -5,3 +5,5 @@ const router = express.Router();
 router.post('/',translateMsg);
 
 router.get('/',getListOfLanguages);
+
+export default router
