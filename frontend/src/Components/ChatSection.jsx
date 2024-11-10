@@ -6,13 +6,14 @@ import FilesInChat from './FilesInChat';
 import api from '../utils/Api';
 import { io } from 'socket.io-client';
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { useSelector } from 'react-redux';
+import { useSelector } from 'react-redux'; 
 import Picker from '@emoji-mart/react';
 import Translation from './Translation';
 import { useNavigate } from 'react-router-dom'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faFaceSmile, faFilePowerpoint, faPaperPlane, } from '@fortawesome/free-regular-svg-icons';
 import { faPaperclip, faPhone, faVideo, faCheck, faCheckDouble, faEllipsisV, faTrash, faCopy, faCheckSquare, faFilePdf, faFileWord, faFileExcel, faFileAlt } from '@fortawesome/free-solid-svg-icons';
+import { setTargetLanguage } from '../store/lngSlice';
 
 function ChatSection({ sideProfileCard, isSideProfileCard, delOptCardToggle }) {
 
@@ -24,6 +25,7 @@ function ChatSection({ sideProfileCard, isSideProfileCard, delOptCardToggle }) {
   //getting the recipient id and chatroom from redux store
   const currentChat = useSelector((state) => state.chat.currentChat);
   const currentChatRoom = useSelector((state) => state.chatRoom.currentChatRoom);
+  const targetLanguage = useSelector((state) => state.lng.targetLanguage);
 
   //all the states using
   const [isTyping, setIsTyping] = useState(false);
@@ -84,20 +86,56 @@ function ChatSection({ sideProfileCard, isSideProfileCard, delOptCardToggle }) {
   }, []);
 
 
+  // const handleTranslation = async (message) =>{
+  //   console.log('yo bro what the fuck ');
+  //   console.log(targetLanguage)
+  //   if(targetLanguage){
+  //   console.log('target language is:',targetLanguage);
+  //     const response = await api.post('/api/translate/translateMsg',{targetLanguage,message},{
+  //           withCredentials:true
+  //     })
+  //     if(response.data.success){
+  //      return response.data.translatedMessage
+  //     }
+  //   }else{
+  //     return message;
+  //   }
+  // }
+  const targetLanguageRef = useRef(targetLanguage);
+useEffect(() => {
+  targetLanguageRef.current = targetLanguage;
+}, [targetLanguage]);
+
 
 
 
 
   //handling receiving messages ,  callback function for 'receiveMessage' socket.io event listener
-  const handleReceiveMessage = useCallback((message) => {
+  const handleReceiveMessage = useCallback(async (message) => {
 
     //updating the receved message in real time
+    if (targetLanguageRef.current) {
+      console.log("Translating message to target language:", targetLanguageRef.current);
+      try {
+        const response = await api.post('/api/translate/translateMsg', {
+          targetLanguage: targetLanguageRef.current,
+          message
+        }, { withCredentials: true });
+        
+        if (response.data.success) {
+          message = response.data.translatedMessage;
+        }
+      } catch (error) {
+        console.error("Translation error:", error);
+      }
+    }
+
     setMessages((prevMessages) => [...prevMessages, message]);
 
 
     if (message.sender._id !== userId) {
       //updating receiving to delivered 
-      updateMessagesDelivered();
+        updateMessagesDelivered();
 
       if (socket.current) {
         const currentRoom = currentChat;
