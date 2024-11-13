@@ -1,19 +1,14 @@
 import React, { useState, useRef, useEffect } from 'react';
-import profilePic from '../assets/profilePic.jpg';
-import { jwtDecode } from 'jwt-decode';
 import { format } from 'date-fns';
 import { useDispatch, useSelector } from 'react-redux';
 import { setCurrentChat } from '../store/chatSlice';
 import { setCurrentChatRoom } from '../store/chatRoomSlice';
+import userId from '../utils/UserId';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import api from '../utils/Api';
 import { faSearch, faArrowRight, faPlus } from '@fortawesome/free-solid-svg-icons';
 
 function ChatListing({ newChatCard }) {
-
-    const token = localStorage.getItem('token');
-    const decodedToken = jwtDecode(token);
-    const userId = decodedToken.userId;
 
     const [activeChatRooms, setActiveChatRooms] = useState([]);
     const [isChatMenuVisible, setIsChatMenuVisible] = useState(null);

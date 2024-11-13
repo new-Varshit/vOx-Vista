@@ -1,8 +1,9 @@
 import React from 'react'
 import { useState } from 'react';
 import FileModal from './FileModal';
+import GetFileIcon from '../utils/GetFileIcon';
 
-function filesInChat({ attachments, getFileIcon }) {
+function filesInChat({ attachments }) {
 
   const [fileToShow, setFileToShow] = useState(null);
 
@@ -30,7 +31,7 @@ function filesInChat({ attachments, getFileIcon }) {
             {/* Show file name for non-previewable files */}
             {attachment?.mimeType?.startsWith('application/') && (
               <div className="w-24 h-24 text-center p-1 rounded-md text-gray-600  text-sm font-medium  bg-gray-50 flex flex-col justify-center items-center">
-                {getFileIcon(attachment.mimeType)}
+                <GetFileIcon fileType={attachment?.mimeType}/>
                 <p className='text-xs'>{attachment?.fileName}</p>
               </div>
             )}
