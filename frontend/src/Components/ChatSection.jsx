@@ -1,26 +1,14 @@
 import React from 'react';
-import { jwtDecode } from 'jwt-decode';
-import { format } from 'date-fns';
-import profilePic from '../assets/profilePic.jpg';
-import FilesInChat from './FilesInChat';
 import api from '../utils/Api';
 import { io } from 'socket.io-client';
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { useSelector } from 'react-redux'; 
-import Picker from '@emoji-mart/react';
-import Translation from './Translation';
-import { useNavigate } from 'react-router-dom'
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faFaceSmile, faFilePowerpoint, faPaperPlane, } from '@fortawesome/free-regular-svg-icons';
-import { faPaperclip, faPhone, faVideo, faCheck, faCheckDouble, faEllipsisV, faTrash, faCopy, faCheckSquare, faFilePdf, faFileWord, faFileExcel, faFileAlt } from '@fortawesome/free-solid-svg-icons';
-import { setTargetLanguage } from '../store/lngSlice';
+import { useSelector } from 'react-redux';
+import userId from '../utils/UserId';
+import MessageSecCS from './MessageSecCS';
+import InputAreaCS from './InputAreaCS';
+import HeaderSecCS from './HeaderSecCS';
 
 function ChatSection({ sideProfileCard, isSideProfileCard, delOptCardToggle }) {
-
-  //getting userId from token stored in localStorage
-  const token = localStorage.getItem('token');
-  const decodedToken = jwtDecode(token);
-  const userId = decodedToken.userId;
 
   //getting the recipient id and chatroom from redux store
   const currentChat = useSelector((state) => state.chat.currentChat);
@@ -37,22 +25,17 @@ function ChatSection({ sideProfileCard, isSideProfileCard, delOptCardToggle }) {
   const [inSelectMode, setSelectMode] = useState(false);
   const [selectedMsgs, setSelectedMsgs] = useState([]);
   const [selectedFiles, setSelectedFiles] = useState([]);
-  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
 
   //references we are using 
   const typingTimeoutRef = useRef(null);
   const lastMessageRef = useRef(null);
   const socket = useRef(null);
-  const fileInputRef = useRef(null);
-  const previewRef = useRef(null);
 
 
   const typingObj = {
     userId: currentChat?._id,
     chatRoomId: currentChatRoom?._id
   }
-
-
 
   // to dynamically showing if recipient is typing using socket.io
   const handleTyping = () => {
@@ -86,42 +69,24 @@ function ChatSection({ sideProfileCard, isSideProfileCard, delOptCardToggle }) {
   }, []);
 
 
-  // const handleTranslation = async (message) =>{
-  //   console.log('yo bro what the fuck ');
-  //   console.log(targetLanguage)
-  //   if(targetLanguage){
-  //   console.log('target language is:',targetLanguage);
-  //     const response = await api.post('/api/translate/translateMsg',{targetLanguage,message},{
-  //           withCredentials:true
-  //     })
-  //     if(response.data.success){
-  //      return response.data.translatedMessage
-  //     }
-  //   }else{
-  //     return message;
-  //   }
-  // }
   const targetLanguageRef = useRef(targetLanguage);
-useEffect(() => {
-  targetLanguageRef.current = targetLanguage;
-}, [targetLanguage]);
-
-
-
+  useEffect(() => {
+    targetLanguageRef.current = targetLanguage;
+  }, [targetLanguage]);
 
 
   //handling receiving messages ,  callback function for 'receiveMessage' socket.io event listener
   const handleReceiveMessage = useCallback(async (message) => {
-
+    console.log('message: ', message);
     //updating the receved message in real time
-    if (targetLanguageRef.current) {
+    if (targetLanguageRef.current && message.sender._id !== userId) {
       console.log("Translating message to target language:", targetLanguageRef.current);
       try {
         const response = await api.post('/api/translate/translateMsg', {
           targetLanguage: targetLanguageRef.current,
           message
         }, { withCredentials: true });
-        
+
         if (response.data.success) {
           message = response.data.translatedMessage;
         }
@@ -135,7 +100,7 @@ useEffect(() => {
 
     if (message.sender._id !== userId) {
       //updating receiving to delivered 
-        updateMessagesDelivered();
+      updateMessagesDelivered();
 
       if (socket.current) {
         const currentRoom = currentChat;
@@ -161,7 +126,7 @@ useEffect(() => {
     updateMessagesDelivered();
 
 
-    if (token) {
+    if (userId) {
 
       //connecting to the socket.io server and will also join the personal room...
       socket.current = io('http://localhost:3000', {
@@ -258,6 +223,7 @@ useEffect(() => {
   }, [currentChatRoom]);
 
 
+
   //This useEffect hook manages the socket's 'msgDelivered' event listener....
   useEffect(() => {
     if (!socket.current) return;
@@ -266,6 +232,7 @@ useEffect(() => {
       socket.current.off('msgDelivered');
     };
   }, [currentChat]);
+
 
 
 
@@ -323,7 +290,6 @@ useEffect(() => {
   }, [messages]);
 
 
-
   //seding the message to the database  to store as well as to the socket.io server for dynamically sending...
   const sendInputMessage = async (e) => {
     if (sendMessage || selectedFiles.length > 0) {
@@ -363,23 +329,6 @@ useEffect(() => {
       return;
     }
   }
-
-
-  // returning the appropriate icon  as per the message status
-  const statusCheck = (msgStatus) => {
-
-    if (msgStatus === 'read') {
-      return (<FontAwesomeIcon icon={faCheckDouble} className='text-cyan-400 text-xs' />)
-
-    } else if (msgStatus === 'delivered') {
-      return (<FontAwesomeIcon icon={faCheckDouble} className='text-gray-300 text-xs' />)
-
-    } else {
-      return (<FontAwesomeIcon icon={faCheck} className='text-gray-300 text-xs' />)
-    }
-
-  }
-
 
   //handling if message menu card i.e delsel card is visible or not
   const handleDelSelCard = async (id) => {
@@ -469,287 +418,61 @@ useEffect(() => {
     }
   }
 
-  const handleFileChange = (event) => {
-    const files = Array.from(event.target.files);
-    let validFiles = []
-
-    for (let file of files) {
-      if (file.size > 5 * 1024 * 1024) {
-        alert(`${file.name} exceeds the size limit of 5 MB`);
-        continue;
-      }
-      if (validFiles.length >= 5) {
-        alert(`You can select up to 5 files`);
-        break;
-      }
-      validFiles.push(file);
-    }
-
-    const filePreviews = validFiles.map((file) => {
-      console.log(file);
-      if (file.type.startsWith('image/') || file.type.startsWith('video/')) {
-        return { file, preview: URL.createObjectURL(file) }
-      } else {
-        return { file, preview: null }
-      }
-    })
-    setSelectedFiles(filePreviews);
-    console.log(filePreviews);
-  };
 
 
-  const handleClipClick = () => {
-    fileInputRef.current.click();  // Click the hidden file input
-  };
-
-  const getFileIcon = (fileType) => {
-    if (fileType.includes("pdf")) return (<FontAwesomeIcon icon={faFilePdf} className='text-3xl ' style={{ color: '#FF0000' }} />)
-    if (fileType.includes("word")) return (<FontAwesomeIcon icon={faFileWord} className='text-3xl ' style={{ color: '#2B579A' }} />)
-    if (fileType.includes("excel")) return (<FontAwesomeIcon icon={faFileExcel} className='text-3xl ' style={{ color: '#217346' }} />)
-    if (fileType.includes("ppt") || fileType.endsWith(".pptx")) retrun(<FontAwesomeIcon icon={faFilePowerpoint} className='text-3xl ' style={{ color: '#217346' }} />)
-    return (<FontAwesomeIcon icon={faFileAlt} className='text-3xl' style={{ color: '#6B7280' }} />) // Generic icon for other files
-  };
 
 
-  useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (previewRef.current && !previewRef.current.contains(event.target)) {
-        setSelectedFiles([]);
-      }
-    };
-
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside)
-    }
-
-  }, [previewRef]);
 
 
-  const addEmoji = (emoji) => {
-    setSendMessage(sendMessage + emoji.native); // Append the selected emoji to the message
-    // setShowEmojiPicker(false); // Close the emoji picker after selecting an emoji
-};
+
+
+
 
   return (
     <>
       {currentChat ?
         (<div className='h-full relative'>
-          <div className='w-full bg-white border-b-2 border-gray-200 h-[10%] '>
-            {inSelectMode ?
-              (<div className='flex justify-between items-center gap-2 py-4 ml-7 w-11/12'>
 
-                <div className='flex gap-1 text-lg font-semibold'>
-                  {selectedMsgs.length}
-                  <p>Selected</p>
-                </div>
-
-
-                <div className='flex gap-2   font-medium text-sm'>
-                  <button className='py-1 px-2 rounded-md border-anotherPrimary border-2' onClick={deleteSelectedMsgs} >Delete</button>
-                  <button className='py-1 px-2 rounded-md bg-anotherPrimary text-white' onClick={() => handleCancelSelection()}>Cancel</button>
-                </div>
-
-              </div>)
-              :
-              (<div className='flex justify-between items-center gap-2 py-4 ml-7 w-11/12'>
-                <div className='flex items-center  gap-4'>
-                  <div className='overflow-hidden rounded-full'>
-                    <img className='w-12' src={currentChat?.profile?.profilePic} alt="" onClick={sideProfileCard} />
-                  </div>
-                  <div className='flex flex-col '>
-                    <p className='font-semibold  text-sm'>{currentChat.userName}</p>
-                    {typingUsers.find(id => id !== currentChat._id)
-                      ?
-                      <p className='text-xs font-semibold text-green-500'>Typing...</p>
-                      :
-                      <p className='text-xs font-medium text-font'>{onlineUsers.find(id => id === currentChat._id) ? 'Online' : 'Offline'}</p>
-                    }
-                  </div>
-                </div>
-
-                {!isSideProfileCard && (
-                  <div className='flex gap-4'>
-                      <Translation/>
-                    <div>
-                      <FontAwesomeIcon icon={faPhone} className='  text-gray-400 text-xl' />
-                    </div>
-                    <div>
-                      <FontAwesomeIcon icon={faVideo} className='  text-gray-400 text-xl' />
-                    </div>
-                  </div>
-                )
-                }
-              </div>
-              )}
-          </div>
-          <div className=' h-[83%] bg-white overflow-y-scroll scroll-smooth scrollbar-thin scrollbar-thumb-white scrollbar-track-white rounded-r-xl p-4  flex flex-col gap-0.5' >
+          <HeaderSecCS
+            inSelectMode={inSelectMode}
+            selectedMsgs={selectedMsgs}
+            deleteSelectedMsgs={deleteSelectedMsgs}
+            handleCancelSelection={handleCancelSelection}
+            typingUsers={typingUsers}
+            onlineUsers={onlineUsers}
+            isSideProfileCard={isSideProfileCard}
+            sideProfileCard={sideProfileCard}
+          />
 
 
-            {/* message section -->  */}
+          {/* message section -->  */}
 
-
-            {
-              messages.map((message, index) => (
-                message?.content || message.attachments.length > 0 ? (
-                  <div key={message._id} ref={index === messages.length - 1 ? lastMessageRef : null} className={`${selectedMsgs.includes(message._id) ? 'bg-blue-300  bg-opacity-50' : ''}`} onClick={() => inSelectMode && toggleSelectMessage(message._id)}>
-                    {message?.sender?._id !== userId
-                      ? (
-                        <div className='flex gap-1 group mt-1'>
-                          <img className='rounded-full w-7 h-7 flex' src={message?.sender?.profile?.profilePic} alt="error" />
-                          <div className='bg-gray-200 text-gray-800 max-w-[70%] pt-2 pb-1 px-2 flex flex-col  justify-center rounded-md'>
-                            {message?.attachments?.length > 0 && <FilesInChat attachments={message?.attachments} getFileIcon={getFileIcon} />}
-                            <p className=' text-gray-800 text-sm   font-medium -mb-2 mr-12'>{message.content}</p>
-                            <div className={`flex  w-full justify-end ${message?.attachments?.length > 0 && 'mt-2'}`}>
-                              <p className='text-[10px] '>{format(new Date(message?.createdAt), 'HH:mm')}</p>
-                            </div>
-                          </div>
-
-
-                          {!inSelectMode &&
-                            (<div className={`bg-gray-200 w-[2%]  ${isDelSelCardVisible === message._id ? 'flex' : 'hidden group-hover:flex'}  justify-center items-center rounded-r-xl relative curson-pointer`} onClick={(e) => handleDelSelCard(message._id, e)}>
-                              {isDelSelCardVisible === message._id && (
-                                <div className={` bg-gray-200 absolute left-[120%] ${index === messages.length - 1 ? 'bottom-1/3' : 'top-1/3'}          rounded-lg p-3  flex flex-col gap-2 `}>
-                                  <div className='flex gap-2' onClick={() => handleSingleMsgDeletion(message)}>
-                                    <FontAwesomeIcon icon={faTrash} className='text-lg text-anotherPrimary' />
-                                    <button className='text-sm font-medium'>Delete</button>
-                                  </div>
-                                  <div className='flex gap-2' onClick={() => handleMessageSelect(message._id)}>
-                                    <FontAwesomeIcon icon={faCheckSquare} className='text-lg text-anotherPrimary' />
-                                    <button className='text-sm font-medium'>Select</button>
-                                  </div>
-                                  <div className='flex gap-2'>
-                                    <FontAwesomeIcon icon={faCopy} className='text-lg text-anotherPrimary' />
-                                    <button className='text-sm font-medium'>Copy</button>
-                                  </div>
-                                </div>
-
-                              )};
-                              <FontAwesomeIcon icon={faEllipsisV} className='text-gray-700 text-xl cursor-pointer' />
-                            </div>)
-                          }
-                        </div>
-                      )
-                      :
-                      (
-                        <div className=' flex gap-1 justify-end group  mt-1 ' >
-                          {!inSelectMode &&
-
-                            (<div className={`bg-gray-200 w-[2%] ${isDelSelCardVisible === message._id ? 'flex' : 'hidden group-hover:flex'} justify-center items-center rounded-l-xl relative curson-pointer`} onClick={(e) => handleDelSelCard(message._id, e)}>
-                              {isDelSelCardVisible === message._id && (
-                                <div className={` bg-gray-200 absolute right-[120%] ${index === messages.length - 1 ? 'bottom-1/3' : 'top-1/3'} rounded-lg p-3  flex flex-col gap-2 `}>
-                                  <div className='flex gap-2' onClick={() => handleSingleMsgDeletion(message)}>
-                                    <FontAwesomeIcon icon={faTrash} className='text-lg text-anotherPrimary' />
-                                    <button className='text-sm font-medium'>Delete</button>
-                                  </div>
-                                  <div className='flex gap-2' onClick={() => handleMessageSelect(message._id)}>
-                                    <FontAwesomeIcon icon={faCheckSquare} className='text-lg text-anotherPrimary' />
-                                    <button className='text-sm font-medium'>Select</button>
-                                  </div>
-                                  <div className='flex gap-2'>
-                                    <FontAwesomeIcon icon={faCopy} className='text-lg text-anotherPrimary' />
-                                    <button className='text-sm font-medium'>Copy</button>
-                                  </div>
-                                </div>
-
-                              )};
-                              <FontAwesomeIcon icon={faEllipsisV} className='text-gray-700 text-xl cursor-pointer' />
-                            </div>)
-                          }
-                          <div className='bg-anotherPrimary text-sm max-w-[70%] text-white pt-2 pb-1 px-2 flex flex-col  justify-center rounded-md'>
-                            {message?.attachments?.length > 0 && <FilesInChat attachments={message?.attachments} getFileIcon={getFileIcon} />}
-
-                            <p className='text-sm text-white font-medium -mb-2 mr-16'>{message.content}</p>
-                            <div className={`flex gap-2 w-full justify-end ${message?.attachments?.length > 0 && 'mt-2'}`}>
-                              <p className='text-[10px] text-gray-300'>{format(new Date(message?.createdAt), 'HH:mm')}</p>
-                              <p>{statusCheck(message?.status)}</p>
-                            </div>
-                          </div>
-                          <img className='rounded-full w-7 h-7 flex' src={message?.sender?.profile?.profilePic} alt="error" loading="lazy" />
-                        </div>
-                      )
-                    }
-                  </div>
-                ) : null
-              ))
-            }
-          </div>
+          <MessageSecCS
+            messages={messages}
+            selectedMsgs={selectedMsgs}
+            inSelectMode={inSelectMode}
+            toggleSelectMessage={toggleSelectMessage}
+            lastMessageRef={lastMessageRef}
+            isDelSelCardVisible={isDelSelCardVisible}
+            handleDelSelCard={handleDelSelCard}
+            handleSingleMsgDeletion={handleSingleMsgDeletion}
+            handleMessageSelect={handleMessageSelect}
+          />
 
 
 
           {/* input area  */}
 
-          <div className='w-[97%] ml-3 bottom-2 flex rounded-lg overflow-hidden ' ref={previewRef}>
-            <form className='flex w-full' onSubmit={sendInputMessage}>
-              <div className='flex bg-gray-300 gap-4 justify-center items-center px-5'>
-
-                <FontAwesomeIcon icon={faFaceSmile} className='text-white text-2xl' onClick={() => setShowEmojiPicker(!showEmojiPicker)} />
-                {showEmojiPicker &&
-                  (<div className='absolute bottom-[8%] left-[2%]'>
-                    <Picker onEmojiSelect={addEmoji}/>
-                  </div>)}
-                <FontAwesomeIcon icon={faPaperclip} className='text-white text-2xl' onClick={handleClipClick} />
-                <input type="file" className='hidden' multiple accept='*' ref={fileInputRef} onChange={handleFileChange}
-                />
-                {selectedFiles.length > 0 &&
-                  (<div className='absolute flex flex-col p-4  bg-gray-200 border-black border-2 left-[2%] bottom-[8%] ' >
-                    <p className='font-medium text-sm'>{selectedFiles.length === 1 ? `Selected item...` : `Selected items(${selectedFiles.length})`}</p>
-                    <div className={`grid ${selectedFiles.length === 1
-                      ? 'grid-cols-1'
-                      : selectedFiles.length === 2
-                        ? 'grid-cols-2'
-                        : selectedFiles.length === 3
-                          ? 'grid-cols-3'
-                          : selectedFiles.length === 4
-                            ? 'grid-cols-4'
-                            : 'grid-cols-5'}  gap-4 mt-4`}>
-                      {selectedFiles.map((fileObj, index) => (
-                        <div key={index} className="w-24 h-24 flex flex-col items-center flex-wrap ">
-
-                          {/* Show preview for images and videos */}
-                          {fileObj.preview && fileObj.file.type.startsWith("image/") && (
-                            <img
-                              src={fileObj.preview}
-                              alt={`Preview ${index}`}
-                              className="w-24 h-24 object-cover rounded-md"
-                            />
-                          )}
-                          {fileObj.preview && fileObj.file.type.startsWith("video/") && (
-                            <video
-                              src={fileObj.preview}
-                              controls
-                              className="w-24 h-24 object-cover rounded-md"
-                            />
-                          )}
+          <InputAreaCS
+            setSelectedFiles={setSelectedFiles}
+            sendInputMessage={sendInputMessage}
+            selectedFiles={selectedFiles}
+            sendMessage={sendMessage}
+            setSendMessage={setSendMessage}
+            handleTyping={handleTyping}
+          />
 
 
-                          {/* Show file name for non-previewable files */}
-                          {!fileObj.preview && (
-                            <div className="w-24 h-24 text-center p-1 rounded-md text-gray-600  text-sm font-medium  bg-gray-50 flex flex-col justify-center items-center">
-                              {getFileIcon(fileObj.file.type)}
-                              <p className='text-xs'>{fileObj.file.name}</p>
-                            </div>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                  </div>)}
-              </div>
-
-              <input
-                className='w-full py-4 px-2 focus:outline-none bg-gray-300'
-                type='text'
-                placeholder={selectedFiles.length > 0 ? 'Add caption here (optional)' : 'Type a message...'}
-                value={sendMessage}
-                onChange={(e) => setSendMessage(e.target.value)}
-                onInput={handleTyping}
-              />
-
-              <button type='submit' className='px-5 bg-gray-300 flex justify-center items-center'>
-                <FontAwesomeIcon icon={faPaperPlane} className='text-anotherPrimary text-3xl' />
-              </button>
-            </form>
-          </div>
 
         </div>)
         : (
