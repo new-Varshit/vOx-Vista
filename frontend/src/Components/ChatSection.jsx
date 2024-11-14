@@ -419,15 +419,6 @@ function ChatSection({ sideProfileCard, isSideProfileCard, delOptCardToggle }) {
   }
 
 
-
-
-
-
-
-
-
-
-
   return (
     <>
       {currentChat ?

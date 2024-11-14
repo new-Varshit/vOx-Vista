@@ -2,7 +2,7 @@ import React, { useEffect } from 'react';
 import { useState } from 'react';
 import api from '../utils/Api';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faArrowRight, faSearch } from '@fortawesome/free-solid-svg-icons';
+import { faArrowRight, faArrowLeft, faSearch, faUserFriends } from '@fortawesome/free-solid-svg-icons';
 import { useDispatch } from 'react-redux';
 import { setCurrentChat } from '../store/chatSlice';
 import { setCurrentChatRoom } from '../store/chatRoomSlice';
@@ -11,11 +11,14 @@ import profilePic from '../assets/profilePic.jpg';
 function NewChatSearch({ newChatCard }) {
 
     const dispatch = useDispatch();
+
     const [newChats, setNewChats] = useState([]);
     const [searchInput, setSearchInput] = useState('');
     const [message, setMessage] = useState('');
+    const [newGrpMode, setNewGrpMode] = useState(false);
+    const [members, setMembers] = useState([]);
 
-    
+
     const handleClick = (e) => {
         if (e.target === e.currentTarget) {
             newChatCard();
@@ -39,6 +42,24 @@ function NewChatSearch({ newChatCard }) {
         }
     }
 
+    const handleSelMemClick = (newChat) => {
+        setMembers(prevMembers => {
+            const newSet = new Set(prevMembers);
+            if (newSet.has(newChat._id)) {
+                newSet.delete(newChat._id);
+            } else {
+                newSet.add(newChat._id);
+            }
+            return Array.from(newSet);
+        });
+    };
+
+    const handleGrpMode = () =>{
+        setNewGrpMode(!newGrpMode)
+        setMembers([]);
+    }
+
+
 
     useEffect(() => {
 
@@ -46,7 +67,7 @@ function NewChatSearch({ newChatCard }) {
             setNewChats([]);
             setMessage('');
             return;
-        } 
+        }
         const timeoutId = setTimeout(async () => {
 
             const searchQuery = async () => {
@@ -76,12 +97,46 @@ function NewChatSearch({ newChatCard }) {
     return (
         <div className='absolute w-full h-full bg-transparent z-30 flex ' onClick={handleClick}>
             <div className='w-1/5 top-[28%] left-1/4 h-[60%] relative bg-gray-200 p-4 flex flex-col gap-3 rounded-lg'>
-                <div className='flex  gap-2 items-center'>
-                    <p className='font-semibold text-lg'>New Chat</p>
-                    <FontAwesomeIcon icon={faArrowRight} className='text-base' />
+                <div className='flex justify-between items-center'>
+
+                    <div className='flex  gap-2 items-center'>
+                        {newGrpMode && <FontAwesomeIcon icon={faArrowLeft} className='text-base' onClick={handleGrpMode} />
+                        }
+                        <p className='font-semibold text-lg'>{newGrpMode ? 'New Group' : 'New Chat'}</p>
+                        {!newGrpMode && <FontAwesomeIcon icon={faArrowRight} className='text-base' />
+                        }
+                    </div>
+                    {newGrpMode &&
+                        <div>
+                            <p className='font-semibold'>{`selected(${members?.length})`}</p>
+                        </div>}
                 </div>
-                <div className=''>
+
+                <div className='flex flex-col gap-2'>
                     <input className='rounded-full py-2 px-4 text-sm w-full focus:outline-none text-gray-600' type="text" placeholder='Search email or username' onChange={(e) => setSearchInput(e.target.value)} />
+
+                    {!newGrpMode &&
+                        <div className='flex gap-3 items-center px-3 hover:bg-blue-300 py-1 rounded-md cursor-pointer' onClick={() => setNewGrpMode(!newGrpMode)}>
+                            <FontAwesomeIcon icon={faUserFriends} className='text-xl text-anotherPrimary  border-anotherPrimary rounded-full
+                        p-1' />
+                            <p className='text-sm font-medium text-anotherPrimary'>New group </p>
+                        </div>
+                    }
+                    {
+                        members.length > 0 &&
+                        (
+                            <div className='flex justify-evenly items-center'>
+                                <button className='px-2 text-sm font-medium text-center py-1 w-[47%] rounded-md hover:bg-blue-500  bg-anotherPrimary text-white'>
+                                    Next
+                                </button>
+                                <button onClick={handleGrpMode} className='px-2 text-sm font-medium text-center rounded-md py-1 w-[47%] hover:bg-b-100 bg-white text-anotherPrimary'>
+                                    Cancel
+                                </button >
+                            </div>
+                        )
+                    }
+
+
                 </div>
                 <div>
 
@@ -90,17 +145,19 @@ function NewChatSearch({ newChatCard }) {
                             ?
                             <div className='w-5/6 mx-auto mt-[30%] flex flex-col gap-2 justify-center items-center'>
                                 <div>
-                                    <FontAwesomeIcon icon={faSearch} className='text-7xl text-font' />
+                                    <FontAwesomeIcon icon={newGrpMode ? faUserFriends : faSearch} className='text-7xl text-font' />
                                 </div>
                                 <p className='text-gray-600 font-semibold text-sm text-center'>
-                                    {message || 'Search for New Chats , Using Email or Username...'}
+
+                                    {message || (newGrpMode ? 'Search for group members using Email or Username...' : 'Search for new chats using Email or Username...')}
+
                                 </p>
                             </div>
                             :
-                            <div className=' scroll-smooth flex-1 flex flex-col gap-2 overflow-y-scroll scrollbar-thin scrollbar-thumb-gray-200 scrollbar-track-gray-200 '>
+                            <div className=' scroll-smooth flex-1 flex flex-col gap-2 overflow-y-scroll scrollbar-thin scrollbar-thumb-gray-200 scrollbar-track-gray-200 cursor-pointer'>
                                 {
                                     newChats.map((newChat) => (
-                                        <div className='flex justify-start gap-3 hover:bg-gray-300 p-2 py-1 rounded-md' key={newChat._id} onClick={() => handleChatClick(newChat)}>
+                                        <div className={`flex justify-start gap-3 ${!members.includes(newChat._id) && ' hover:bg-gray-300'} p-2 py-1 ${members.includes(newChat._id) && 'bg-blue-300'} rounded-md`} key={newChat._id} onClick={newGrpMode ? () => handleSelMemClick(newChat) : () => handleChatClick(newChat)}>
                                             <img className='rounded-full w-[15%]' src={newChat?.profile?.profilePic || profilePic} alt="profile picture" />
                                             <div className='flex flex-col w-5/6 justify-center'>
                                                 <div className='flex justify-between w-full mb-0'>
