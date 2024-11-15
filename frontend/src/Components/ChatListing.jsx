@@ -12,7 +12,7 @@ function ChatListing({ newChatCard }) {
 
     const [activeChatRooms, setActiveChatRooms] = useState([]);
     const [isChatMenuVisible, setIsChatMenuVisible] = useState(null);
-    const [searchChatRoom,setSearchChatRoom] = useState('');
+    const [searchChatRoom, setSearchChatRoom] = useState('');
 
     const currentChat = useSelector((state) => state.chat.currentChat);
     const currentChatRoom = useSelector((state) => state.chatRoom.currentChatRoom);
@@ -20,26 +20,26 @@ function ChatListing({ newChatCard }) {
     const menuRef = useRef(null);
 
     const dispatch = useDispatch();
-     
-    useEffect(()=>{
+
+    useEffect(() => {
         if (!searchChatRoom.trim()) {
             return;
-        } 
-        const searchActiveUser =async () => {
-             try{
-            const response = await api.get('/api/chatRoom/searchActiveChatRoom',{
-                params: {searchChatRoom},
-                withCredentials:true
-            })
-           if(response.data.success){
-                setActiveChatRooms(response.data.chatRooms);
-            }
-             }catch(err){
+        }
+        const searchActiveUser = async () => {
+            try {
+                const response = await api.get('/api/chatRoom/searchActiveChatRoom', {
+                    params: { searchChatRoom },
+                    withCredentials: true
+                })
+                if (response.data.success) {
+                    setActiveChatRooms(response.data.chatRooms);
+                }
+            } catch (err) {
                 console.log(err);
-             }
-        } 
+            }
+        }
         searchActiveUser();
-    },[searchChatRoom])
+    }, [searchChatRoom])
 
 
     const handleChatClick = async (newChat) => {
@@ -122,7 +122,7 @@ function ChatListing({ newChatCard }) {
         fetchActiveChatRooms();
     }, [currentChat]);
 
-    
+
 
     useEffect(() => {
         document.addEventListener('click', handleClickOutside);
@@ -152,7 +152,7 @@ function ChatListing({ newChatCard }) {
                 <button className='bg-white p-1 px-3 border-l '>
                     <FontAwesomeIcon icon={faSearch} className="text-gray-300" />
                 </button>
-                <input type="text" className='text-sm bg-white focus:outline-none py-3 w-full text-gray-600' onChange={(e)=>setSearchChatRoom(e.target.value)}  placeholder='Search...' />
+                <input type="text" className='text-sm bg-white focus:outline-none py-3 w-full text-gray-600' onChange={(e) => setSearchChatRoom(e.target.value)} placeholder='Search...' />
             </div>
 
             {/* Scrollable chat listing */}
@@ -170,12 +170,24 @@ function ChatListing({ newChatCard }) {
                         </div>
                         :
                         activeChatRooms.map((chatRoom) => (
-                        
+
                             <div className='flex justify-start gap-3 relative overflow-visible' key={chatRoom._id} ref={menuRef} onContextMenu={(e) => handleChatMenuToggle(chatRoom._id, e)} onClick={() => handleChatClick(chatRoom.receiver)}>
-                                <img className='rounded-full w-[15%]' src={chatRoom?.receiver?.profile?.profilePic} alt="profile picture" />
+
+                                {chatRoom?.isGroupChat
+                                    ?
+                                    <img className='rounded-full w-[15%]' src={chatRoom?.groupIcon} alt="profile picture" />
+                                    :
+                                    <img className='rounded-full w-[15%]' src={chatRoom?.receiver?.profile?.profilePic} alt="profile picture" />
+                                }
+
                                 <div className='flex flex-col w-5/6 justify-center'>
                                     <div className='flex justify-between w-full mb-0'>
-                                        <p className='text-anotherPrimary font-semibold text-sm'>{chatRoom?.receiver?.userName}</p>
+                                    {chatRoom?.isGroupChat
+                                    ?
+                                    <p className='text-anotherPrimary font-semibold text-sm'>{chatRoom?.name}</p>
+                                    :
+                                    <p className='text-anotherPrimary font-semibold text-sm'>{chatRoom?.receiver?.userName}</p>
+                                }
                                         <p className='text-xs text-font'>{format(new Date(chatRoom?.lastMessage?.createdAt), 'HH:mm')}</p>
                                     </div>
                                     <div className='flex justify-between w-full mt-0'>

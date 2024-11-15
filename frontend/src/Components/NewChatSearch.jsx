@@ -1,8 +1,8 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { useState } from 'react';
 import api from '../utils/Api';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faArrowRight, faArrowLeft, faSearch, faUserFriends } from '@fortawesome/free-solid-svg-icons';
+import { faArrowRight, faArrowLeft, faSearch, faUserFriends, faCamera } from '@fortawesome/free-solid-svg-icons';
 import { useDispatch } from 'react-redux';
 import { setCurrentChat } from '../store/chatSlice';
 import { setCurrentChatRoom } from '../store/chatRoomSlice';
@@ -17,7 +17,21 @@ function NewChatSearch({ newChatCard }) {
     const [message, setMessage] = useState('');
     const [newGrpMode, setNewGrpMode] = useState(false);
     const [members, setMembers] = useState([]);
+    const [isGrpDetailForm, setIsGrpDetailForm] = useState(false);
+    const [grpDetail, setGrpDetail] = useState({
+        groupIcon: null,
+        name: '',
+    });
 
+    const iconInputRef = useRef(null);
+    const btnRef = useRef(null);
+
+    const handleInputGrpNameChange = (e) => {
+        setGrpDetail(prevMsgs => ({
+            ...prevMsgs,
+            [e.target.name]: e.target.value
+        }))
+    }
 
     const handleClick = (e) => {
         if (e.target === e.currentTarget) {
@@ -54,11 +68,61 @@ function NewChatSearch({ newChatCard }) {
         });
     };
 
-    const handleGrpMode = () =>{
-        setNewGrpMode(!newGrpMode)
+    const handleGrpMode = () => {
+        setNewGrpMode(false)
         setMembers([]);
+        setIsGrpDetailForm(false);
     }
 
+    const handleCameraClick = () => {
+        iconInputRef.current.click();
+    }
+
+    const handleSubmitBtnClick = () => {
+        btnRef.current.click();
+    }
+
+    const handleSubmitGrpDetail = (e) => {
+        e.preventDefault();
+        const formObj = new FormData();
+        formObj.append('name', grpDetail.name);
+        formObj.append('groupIcon', grpDetail.groupIcon);
+        try {
+            const response = api.post('/api/chatRoom/groupChat', { formObj, members }, {
+                headers: { "content-type": "multipart/form-data" },
+                withCredentials: true
+            })
+            if (response.data.success) {
+                dispatch(setCurrentChatRoom(response.data.chatRoom));
+            }
+        } catch (err) {
+            console.log(err);
+        }
+        console.log('submitted...')
+    }
+
+
+    const handleIconInputChange = (event) => {
+
+        const inputIcon = event.target.files[0];
+        console.log(inputIcon);
+
+        if (inputIcon && inputIcon.type.startsWith('image/')) {
+            const iconWithPreview = {
+                ...inputIcon,
+                preview: URL.createObjectURL(inputIcon) // Added correct property name "preview"
+            };
+            setGrpDetail(prevData => ({
+                ...prevData,
+                [event.target.name]: iconWithPreview
+            }));
+        } else {
+            console.warn("Please upload a valid image file.");
+            setGrpDetail(m => ({
+                ...m
+            })); // Clear the selection if the file is invalid
+        }
+    };
 
 
     useEffect(() => {
@@ -92,8 +156,6 @@ function NewChatSearch({ newChatCard }) {
     }, [searchInput]);
 
 
-
-
     return (
         <div className='absolute w-full h-full bg-transparent z-30 flex ' onClick={handleClick}>
             <div className='w-1/5 top-[28%] left-1/4 h-[60%] relative bg-gray-200 p-4 flex flex-col gap-3 rounded-lg'>
@@ -112,22 +174,59 @@ function NewChatSearch({ newChatCard }) {
                         </div>}
                 </div>
 
-                <div className='flex flex-col gap-2'>
-                    <input className='rounded-full py-2 px-4 text-sm w-full focus:outline-none text-gray-600' type="text" placeholder='Search email or username' onChange={(e) => setSearchInput(e.target.value)} />
+                <div className='flex flex-col gap-3'>
 
-                    {!newGrpMode &&
+                    {!isGrpDetailForm &&
+                        <input className='rounded-full py-2 px-4 text-sm w-full focus:outline-none text-gray-600' type="text" placeholder='Search email or username' onChange={(e) => setSearchInput(e.target.value)} />
+                    }
+                    {!newGrpMode && !isGrpDetailForm &&
                         <div className='flex gap-3 items-center px-3 hover:bg-blue-300 py-1 rounded-md cursor-pointer' onClick={() => setNewGrpMode(!newGrpMode)}>
                             <FontAwesomeIcon icon={faUserFriends} className='text-xl text-anotherPrimary  border-anotherPrimary rounded-full
                         p-1' />
                             <p className='text-sm font-medium text-anotherPrimary'>New group </p>
                         </div>
                     }
+
+
+                    {isGrpDetailForm &&
+                        <form className='flex flex-col gap-2 mt-[5%]' onSubmit={(e) => handleSubmitGrpDetail(e)}>
+                            <div>
+                                <div onClick={handleCameraClick} className='flex justify-center items-center gap-5'>
+                                    <div className='border-[1px] border-anotherPrimary  flex justify-center items-center  rounded-full w-[15%] aspect-square overflow-hidden'>
+                                        {grpDetail?.groupIcon ? (
+                                            <img
+                                                src={grpDetail?.groupIcon?.preview}
+                                                alt="Group Icon"
+                                                className="w-full h-full  object-cover rounded-full"
+                                            />
+                                        ) : (
+                                            <FontAwesomeIcon
+                                                icon={faCamera}
+                                                className='text-4xl text-anotherPrimary '
+                                            />
+                                        )}
+                                    </div>
+
+                                    <label htmlFor="groupIcon" className='text-base font-medium  text-gray-600' >Add a group icon</label>
+                                </div>
+                                <input type="file" className='hidden' accept="image/*" ref={iconInputRef} name='groupIcon' required onChange={(e) => handleIconInputChange(e)} />
+                            </div>
+                            <div className='flex flex-col gap-1'>
+                                <label htmlFor="name" className='text-sm font-medium text-gray-600'>Provide a  group name :</label>
+                                <input type="text" placeholder='Group name...' name='name' className='text-xs p-2  focus:outline-none text-gray-600 rounded-lg' value={grpDetail?.name} onChange={handleInputGrpNameChange} />
+                            </div>
+                            <button ref={btnRef} type='submit'></button>
+                        </form>
+                    }
+
+
+
                     {
                         members.length > 0 &&
                         (
-                            <div className='flex justify-evenly items-center'>
-                                <button className='px-2 text-sm font-medium text-center py-1 w-[47%] rounded-md hover:bg-blue-500  bg-anotherPrimary text-white'>
-                                    Next
+                            <div className='flex justify-evenly items-center '>
+                                <button className='px-2 text-sm font-medium text-center py-1 w-[47%] rounded-md hover:bg-blue-500  bg-anotherPrimary text-white' onClick={isGrpDetailForm ? handleSubmitBtnClick : () => setIsGrpDetailForm(true)}>
+                                    {isGrpDetailForm ? 'Create' : 'Next'}
                                 </button>
                                 <button onClick={handleGrpMode} className='px-2 text-sm font-medium text-center rounded-md py-1 w-[47%] hover:bg-b-100 bg-white text-anotherPrimary'>
                                     Cancel
@@ -140,7 +239,8 @@ function NewChatSearch({ newChatCard }) {
                 </div>
                 <div>
 
-                    {
+
+                    {!isGrpDetailForm && (
                         newChats.length === 0
                             ?
                             <div className='w-5/6 mx-auto mt-[30%] flex flex-col gap-2 justify-center items-center'>
@@ -171,7 +271,7 @@ function NewChatSearch({ newChatCard }) {
                                     ))
                                 }
                             </div>
-
+                    )
                     }
 
                 </div>

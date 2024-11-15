@@ -30,6 +30,10 @@ const chatRoomSchema = new mongoose.Schema({
         type: mongoose.Schema.Types.ObjectId,
         ref: "User",
     },
+    groupIcon:{
+        type:String,
+        required:false
+    }
     
 }, { timestamps: true });
 
