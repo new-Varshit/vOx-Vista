@@ -1,6 +1,6 @@
 import React from 'react'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faPhone, faVideo,} from '@fortawesome/free-solid-svg-icons';
+import { faPhone, faVideo, } from '@fortawesome/free-solid-svg-icons';
 import Translation from './Translation';
 import { useSelector } from 'react-redux';
 
@@ -17,6 +17,7 @@ function HeaderSecCS({
 }) {
 
     const currentChat = useSelector((state) => state.chat.currentChat);
+    const currentChatRoom = useSelector((state) => state.chatRoom.currentChatRoom);
 
 
     return (
@@ -38,20 +39,44 @@ function HeaderSecCS({
                 </div>)
                 :
                 (<div className='flex justify-between items-center gap-2 py-4 ml-7 w-11/12'>
-                    <div className='flex items-center  gap-4'>
-                        <div className='overflow-hidden rounded-full'>
-                            <img className='w-12' src={currentChat?.profile?.profilePic} alt="" onClick={sideProfileCard} />
+
+                    {currentChatRoom?.isGroupChat  ?
+
+                        <div className='flex items-center  gap-4'>
+                            <div className='overflow-hidden rounded-full'>
+                                <img className='w-12' src={currentChatRoom?.groupIcon} alt="" onClick={sideProfileCard} />
+                            </div>
+                            <div className='flex flex-col '>
+                                <p className='font-semibold  text-sm'>{currentChatRoom.name}</p>
+                                <div className='flex flex-row'>
+                                        {currentChatRoom.members.maps((member)=>(
+                                             <p className='text-xs'>{member.userName + ", "}</p>
+                                        ))}
+                                </div>
+                                {currentChatRoom.members.some(member=>typingUsers.includes(member._id))
+                                    &&
+                                    <p className='text-xs font-semibold text-green-500'>Typing...</p>
+                                }
+                            </div>
                         </div>
-                        <div className='flex flex-col '>
-                            <p className='font-semibold  text-sm'>{currentChat.userName}</p>
-                            {typingUsers.find(id => id !== currentChat._id)
-                                ?
-                                <p className='text-xs font-semibold text-green-500'>Typing...</p>
-                                :
-                                <p className='text-xs font-medium text-font'>{onlineUsers.find(id => id === currentChat._id) ? 'Online' : 'Offline'}</p>
-                            }
+
+                        :
+
+                        <div className='flex items-center  gap-4'>
+                            <div className='overflow-hidden rounded-full'>
+                                <img className='w-12' src={currentChat?.profile?.profilePic} alt="" onClick={sideProfileCard} />
+                            </div>
+                            <div className='flex flex-col '>
+                                <p className='font-semibold  text-sm'>{currentChat.userName}</p>
+                                {typingUsers.find(id => id !== currentChat._id)
+                                    ?
+                                    <p className='text-xs font-semibold text-green-500'>Typing...</p>
+                                    :
+                                    <p className='text-xs font-medium text-font'>{onlineUsers.find(id => id === currentChat._id) ? 'Online' : 'Offline'}</p>
+                                }
+                            </div>
                         </div>
-                    </div>
+                    }
 
                     {!isSideProfileCard && (
                         <div className='flex gap-4'>
