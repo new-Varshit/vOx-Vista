@@ -20,7 +20,7 @@ function ChatListing({ newChatCard }) {
     const [isChatMenuVisible, setIsChatMenuVisible] = useState(null);
     const [searchChatRoom, setSearchChatRoom] = useState('');
 
-    const currentChat = useSelector((state) => state.chat.currentChat);
+    // const currentChat = useSelector((state) => state.chat.currentChat);
     const currentChatRoom = useSelector((state) => state.chatRoom.currentChatRoom);
 
     const menuRef = useRef(null);
@@ -62,6 +62,11 @@ function ChatListing({ newChatCard }) {
         } catch (err) {
             console.log(err)
         }
+    }
+
+    const handleGroupChatClick = async (groupChat) => {
+        dispatch(setCurrentChat(null));
+        dispatch(setCurrentChatRoom(groupChat));
     }
 
     const handleChatMenuToggle = (chatRoomId, e) => {
@@ -126,7 +131,7 @@ function ChatListing({ newChatCard }) {
             }
         }
         fetchActiveChatRooms();
-    }, [currentChat]);
+    }, [currentChatRoom]);
 
 
 
@@ -177,7 +182,7 @@ function ChatListing({ newChatCard }) {
                         :
                         activeChatRooms.map((chatRoom) => (
 
-                            <div className='flex justify-start gap-3 relative overflow-visible' key={chatRoom._id} ref={menuRef} onContextMenu={(e) => handleChatMenuToggle(chatRoom._id, e)} onClick={() => handleChatClick(chatRoom.receiver)}>
+                            <div className='flex justify-start gap-3 relative overflow-visible' key={chatRoom._id} ref={menuRef} onContextMenu={(e) => handleChatMenuToggle(chatRoom._id, e)} onClick={chatRoom?.isGroupChat ? () => handleGroupChatClick(chatRoom) : () => handleChatClick(chatRoom.receiver)}>
 
                                 {chatRoom?.isGroupChat
                                     ?
@@ -201,7 +206,10 @@ function ChatListing({ newChatCard }) {
                                     <div className='flex justify-between w-full mt-0'>
                                         <p className='text-xs text-font truncate'>{chatRoom?.lastMessage?.sender === userId ? 'You: ' + chatRoom?.lastMessage?.content : chatRoom?.lastMessage?.content}</p>
 
-                                        <p className={`${chatRoom?.unreadMsgs === 0 || currentChatRoom?._id === chatRoom._id ? 'bg-gray-200 text-gray-200' : 'bg-anotherPrimary text-white'} rounded-full text-xs font-semibold px-1 text-center flex items-center`}>{chatRoom?.unreadMsgs}</p>
+                                        {!chatRoom?.isGroupChat &&
+                                            <p className={`${chatRoom?.unreadMsgs === 0 || currentChatRoom?._id === chatRoom._id ? 'bg-gray-200 text-gray-200' : 'bg-anotherPrimary text-white'} rounded-full text-xs font-semibold px-1 text-center flex items-center`}>{chatRoom?.unreadMsgs}</p>
+
+                                        }
                                     </div>
                                 </div>
                                 {

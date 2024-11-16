@@ -3,6 +3,7 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faEllipsisV, faTrash, faCopy, faCheckSquare, } from '@fortawesome/free-solid-svg-icons';
 import { format } from 'date-fns';
 import FilesInChat from './FilesInChat';
+import { useSelector } from 'react-redux';
 import StatusCheck from '../utils/StatusCheck';
 // import userId from '../utils/UserId';
 
@@ -20,6 +21,8 @@ function MessageSecCS({
     handleSingleMsgDeletion,
     handleMessageSelect,
 }) {
+
+    const currentChatRoom = useSelector((state) => state.chatRoom.currentChatRoom);
 
     const token = localStorage.getItem('token');
     const decodedToken = jwtDecode(token);
@@ -101,7 +104,11 @@ function MessageSecCS({
                                         <p className='text-sm text-white font-medium -mb-2 mr-16'>{message.content}</p>
                                         <div className={`flex gap-2 w-full justify-end ${message?.attachments?.length > 0 && 'mt-2'}`}>
                                             <p className='text-[10px] text-gray-300'>{format(new Date(message?.createdAt), 'HH:mm')}</p>
+
+                                          {!currentChatRoom?.isGroupChat && 
                                             <p><StatusCheck msgStatus={message?.status} /></p>
+                                          }
+
                                         </div>
                                     </div>
                                     <img className='rounded-full w-7 h-7 flex' src={message?.sender?.profile?.profilePic} alt="error" loading="lazy" />

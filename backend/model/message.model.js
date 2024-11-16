@@ -2,46 +2,46 @@ import mongoose from 'mongoose';
 
 const messageSchema = new mongoose.Schema({
 
-    content: {
-        type: String
+  content: {
+    type: String
+  },
+  sender: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    required: true
+  },
+  chatRoom: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'ChatRoom',
+    required: true
+  },
+  deletedFor: [
+    {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
     },
-    sender: {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: 'User',
-        required: true
-    },
-    chatRoom: {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: 'chatRoom',
-        required: true
-    },
-    deletedFor: [
-      {
-          type: mongoose.Schema.Types.ObjectId,
-          ref: 'User',
-      },
   ],
-    status: {
+  status: {
+    type: String,
+    enum: ['sent', 'delivered', 'read'],
+    default: 'sent'
+  },
+  attachments: [
+    {
+      public_id: {
         type: String,
-        enum: ['sent', 'delivered', 'read'],
-        default: 'sent'
+        required: true,
+      },
+      url: {
+        type: String,
+        required: true,
+      },
+      mimeType: {
+        type: String,
+        required: true
+      }
     },
-    attachments: [
-        {
-          public_id: {
-            type: String,
-            required: true,
-          },
-          url: {
-            type: String,
-            required: true,
-          },
-          mimeType:{
-            type:String,
-            required:true
-          }
-        },
-      ],
+  ],
 
 
 }, { timestamps: true });

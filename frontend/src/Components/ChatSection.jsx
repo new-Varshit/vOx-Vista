@@ -18,8 +18,8 @@ function ChatSection({ sideProfileCard, isSideProfileCard, delOptCardToggle }) {
   const targetLanguage = useSelector((state) => state.lng.targetLanguage);
 
   const token = localStorage.getItem('token');
-const decodedToken = jwtDecode(token);
-const userId = decodedToken.userId;
+  const decodedToken = jwtDecode(token);
+  const userId = decodedToken.userId;
   //all the states using
   const [isTyping, setIsTyping] = useState(false);
   const [typingUsers, setTypingUsers] = useState([]);
@@ -319,12 +319,15 @@ const userId = decodedToken.userId;
         if (response.data.success) {
           console.log(response.data.message);
           let messageData;
-          if(response.data.message.chatRoom.isGroupChat){
-            messageData={
+          if (response.data?.message?.chatRoom?.isGroupChat) {
+               console.log('in group');
+            messageData = {
               message: response.data.message
             }
-          }else{
+          } else {
+            console.log('in a private chat');
             messageData = {
+
               message: response.data.message,
               recipientId: currentChat._id
             }
