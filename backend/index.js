@@ -52,7 +52,7 @@ io.on('connection', async (socket) => {
 
 
     socket.on('sendMessage', (messageData) => {
-        io.to(messageData.message.chatRoom).emit('receiveMessage', messageData.message);
+        io.to(messageData.message.chatRoom._id).emit('receiveMessage', messageData.message);
 
         if (userId && messageData.recipientId) {
             io.to(messageData.recipientId).emit('receiveMessage', messageData.message);
@@ -66,7 +66,7 @@ io.on('connection', async (socket) => {
     });
 
     socket.on('delivered', (message) => {
-        io.to(message.chatRoom).emit('msgDelivered', message);
+        io.to(message.chatRoom._id).emit('msgDelivered', message);
     });
 
     socket.on('typing', (typingObj) => {

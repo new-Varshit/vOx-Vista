@@ -4,8 +4,9 @@ import { faEllipsisV, faTrash, faCopy, faCheckSquare, } from '@fortawesome/free-
 import { format } from 'date-fns';
 import FilesInChat from './FilesInChat';
 import StatusCheck from '../utils/StatusCheck';
-import userId from '../utils/UserId';
+// import userId from '../utils/UserId';
 
+import { jwtDecode } from 'jwt-decode';
 
 
 function MessageSecCS({
@@ -19,6 +20,10 @@ function MessageSecCS({
     handleSingleMsgDeletion,
     handleMessageSelect,
 }) {
+
+    const token = localStorage.getItem('token');
+    const decodedToken = jwtDecode(token);
+    const userId = decodedToken.userId;
     return (
         <>
             

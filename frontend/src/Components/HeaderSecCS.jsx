@@ -49,7 +49,7 @@ function HeaderSecCS({
                             <div className='flex flex-col '>
                                 <p className='font-semibold  text-sm'>{currentChatRoom.name}</p>
                                 <div className='flex flex-row'>
-                                        {currentChatRoom.members.maps((member)=>(
+                                        {currentChatRoom?.members.map((member)=>(
                                              <p className='text-xs'>{member.userName + ", "}</p>
                                         ))}
                                 </div>

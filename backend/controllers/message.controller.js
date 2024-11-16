@@ -64,7 +64,7 @@ export const sendMessage = async (req, res) => {
       },
     });
 
-    const populatedMessage = await message.populate('sender');
+    const populatedMessage = (await message.populate('sender')).populate('chatRoom');
 
     res.status(200).json({ success: true, message: populatedMessage });
   } catch (err) {

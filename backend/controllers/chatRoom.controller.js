@@ -1,5 +1,7 @@
 import { ChatRoom } from "../model/chatRoom.model.js";
 import { Message } from "../model/message.model.js";
+import cloudinary from '../utils/cloudinary.js';
+import getDataUri from '../utils/dataUri.js';
 
 export const createOrGetChatRoom = async (req, res) => {
     const { userId } = req.id;
@@ -32,6 +34,67 @@ export const createOrGetChatRoom = async (req, res) => {
     }
 }
 
+export const createGroupChat = async (req, res) => {
+    console.log('hello creating group chat')
+    const { name } = req.body;
+      const members = JSON.parse(req.body.members);
+    const groupIcon = req.file;
+    const userId = req.id?.userId;
+    console.log(members,name);
+    console.log(req.file);
+
+    if (!members || !name || !groupIcon) {
+        return res.status(400).json({
+            success: false,
+            message: 'Invalid input data'
+        });
+    }
+   
+
+    const uriData = getDataUri(req.file); // Adjusted to handle single file input
+
+    let cloudResponse;
+    try {
+        cloudResponse = await cloudinary.uploader.upload(uriData.content, {
+            folder: 'vOx-Vista',
+        });
+    } catch (uploadError) {
+        return res.status(500).json({
+            success: false,
+            message: 'Failed to upload group icon',
+            error: uploadError
+        });
+    }
+
+    members.push(userId);
+         let groupChat;
+    try {
+         groupChat = await ChatRoom.create({
+            name: name,
+            isGroupChat: true,
+            admin: userId,
+            members: members,
+            groupIcon: cloudResponse.secure_url
+        });
+
+          groupChat = await groupChat.populate('members');
+
+        console.log(groupChat);
+
+        return res.status(200).json({
+            success: true,
+            groupChat
+        });
+    } catch (err) {
+        console.error(err); // Log the error for debugging
+        return res.status(500).json({
+            success: false,
+            message: 'Failed to create group chat room',
+            error: err
+        });
+    }
+};
+
 export const getAllChatRooms = async (req, res) => {
     const userId = req.id.userId;
     // console.log('the user id is : ', userId);
@@ -57,7 +120,7 @@ export const getAllChatRooms = async (req, res) => {
             }
         });
 
-        
+
 
         const chatRooms = await Promise.all(chatRoomsPromises);
 
@@ -116,23 +179,23 @@ export const dltChatRoom = async (req, res) => {
     }
 }
 
-export const searchActiveChatRoom = async(req,res) =>{
+export const searchActiveChatRoom = async (req, res) => {
     const userId = req.id.userId;
-    const {searchChatRoom} =  req.query;
+    const { searchChatRoom } = req.query;
     // if(!searchChatRoom){
     //     getAllChatRooms();
     // }
-    try{
+    try {
         let chatRooms = await ChatRoom.find({
             members: { $in: [userId] },
         }).populate('members').populate('lastMessage');
 
-        console.log('before promises',chatRooms)
+        console.log('before promises', chatRooms)
 
         const chatRoomsPromises = chatRooms.map(async chat => {
 
-            const receiverProfile = chat.members.find(member =>String(member._id) !== String(userId) && member.userName?.toLowerCase().startsWith(searchChatRoom.toLowerCase()));
-            if(!receiverProfile){
+            const receiverProfile = chat.members.find(member => String(member._id) !== String(userId) && member.userName?.toLowerCase().startsWith(searchChatRoom.toLowerCase()));
+            if (!receiverProfile) {
                 return null;
             }
             const unreadMsgs = await getNumberOfUnreadMsgs(chat._id, receiverProfile?._id);
@@ -148,17 +211,17 @@ export const searchActiveChatRoom = async(req,res) =>{
             }
         });
 
-        
-         chatRooms = (await Promise.all(chatRoomsPromises)).filter(chatRoom => chatRoom !== null  );
-     
-         console.log('after promises',chatRooms);
 
-         return res.status(200).json({
-            success:true,
+        chatRooms = (await Promise.all(chatRoomsPromises)).filter(chatRoom => chatRoom !== null);
+
+        console.log('after promises', chatRooms);
+
+        return res.status(200).json({
+            success: true,
             chatRooms,
-            message:'successfully fetched searched active chatRooms'
-         })
-    }catch(err){
+            message: 'successfully fetched searched active chatRooms'
+        })
+    } catch (err) {
         console.log(err);
     }
 }
