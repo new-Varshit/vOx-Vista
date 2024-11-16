@@ -9,6 +9,8 @@ export const sendMessage = async (req, res) => {
   const { content, chatRoomId } = req.body;
   const senderId = req.id.userId;
 
+     console.log('printing : ',content,chatRoomId);
+
   let attachments = [];
  
    console.log(req.files);
@@ -63,8 +65,8 @@ export const sendMessage = async (req, res) => {
         lastMessage: message._id,
       },
     });
-
-    const populatedMessage = (await message.populate('sender')).populate('chatRoom');
+       console.log('message: ' , message);
+    const populatedMessage = (await message.populate(['sender','chatRoom']));
 
     res.status(200).json({ success: true, message: populatedMessage });
   } catch (err) {

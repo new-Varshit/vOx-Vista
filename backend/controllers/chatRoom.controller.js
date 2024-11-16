@@ -95,6 +95,8 @@ export const createGroupChat = async (req, res) => {
     }
 };
 
+
+
 export const getAllChatRooms = async (req, res) => {
     const userId = req.id.userId;
     // console.log('the user id is : ', userId);
@@ -106,18 +108,35 @@ export const getAllChatRooms = async (req, res) => {
 
 
         const chatRoomsPromises = chats.map(async chat => {
-            const receiverProfile = chat.members.find(member => String(member._id) !== String(userId));
-            const unreadMsgs = await getNumberOfUnreadMsgs(chat._id, receiverProfile._id);
-            let lastMessage = await Message.findOne({
-                chatRoom: chat._id,
-                deletedFor: { $ne: userId }
-            }).sort({ createdAt: -1 });
-            return {
-                ...chat.toObject(),
-                receiver: receiverProfile,
-                unreadMsgs,
-                lastMessage
+                       let lastMessage;
+            if(!chat.isGroupChat){
+                const receiverProfile = chat.members.find(member => String(member._id) !== String(userId));
+
+                const unreadMsgs = await getNumberOfUnreadMsgs(chat._id, receiverProfile._id);
+                lastMessage = await Message.findOne({
+                    chatRoom: chat._id,
+                    deletedFor: { $ne: userId }
+                }).sort({ createdAt: -1 });
+                return {
+                    ...chat.toObject(),
+                    receiver: receiverProfile,
+                    unreadMsgs,
+                    lastMessage
+                }
+            }else{
+                 lastMessage = await Message.findOne({
+                    chatRoom: chat._id,
+                    deletedFor: { $ne: userId }
+                }).sort({ createdAt: -1 });
+
+                return {
+                    ...chat.toObject(),
+                    lastMessage
+                }
             }
+
+
+           
         });
 
 
