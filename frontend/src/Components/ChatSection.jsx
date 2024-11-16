@@ -3,10 +3,12 @@ import api from '../utils/Api';
 import { io } from 'socket.io-client';
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useSelector } from 'react-redux';
-import userId from '../utils/UserId';
+// import userId from '../utils/UserId';
 import MessageSecCS from './MessageSecCS';
 import InputAreaCS from './InputAreaCS';
 import HeaderSecCS from './HeaderSecCS';
+import { jwtDecode } from 'jwt-decode';
+
 
 function ChatSection({ sideProfileCard, isSideProfileCard, delOptCardToggle }) {
 
@@ -15,6 +17,9 @@ function ChatSection({ sideProfileCard, isSideProfileCard, delOptCardToggle }) {
   const currentChatRoom = useSelector((state) => state.chatRoom.currentChatRoom);
   const targetLanguage = useSelector((state) => state.lng.targetLanguage);
 
+  const token = localStorage.getItem('token');
+const decodedToken = jwtDecode(token);
+const userId = decodedToken.userId;
   //all the states using
   const [isTyping, setIsTyping] = useState(false);
   const [typingUsers, setTypingUsers] = useState([]);
@@ -191,7 +196,7 @@ function ChatSection({ sideProfileCard, isSideProfileCard, delOptCardToggle }) {
             );
           }
           //updating to read in real time 
-          if (currentChat && message.inChatRoom && response?.data?.success) {
+          if (currentChatRoom && message.inChatRoom && response?.data?.success) {
             response = await api.post(`/api/message/updateMsgToRead/${message._id}`, null, {
               withCredentials: true
             });
@@ -313,11 +318,17 @@ function ChatSection({ sideProfileCard, isSideProfileCard, delOptCardToggle }) {
         });
         if (response.data.success) {
           console.log(response.data.message);
-          let messageData = {
-            message: response.data.message,
-            recipientId: currentChat._id
+          let messageData;
+          if(response.data.message.chatRoom.isGroupChat){
+            messageData={
+              message: response.data.message
+            }
+          }else{
+            messageData = {
+              message: response.data.message,
+              recipientId: currentChat._id
+            }
           }
-
           socket.current.emit('sendMessage', messageData);
           setSendMessage('');
           setSelectedFiles([]);
@@ -421,7 +432,7 @@ function ChatSection({ sideProfileCard, isSideProfileCard, delOptCardToggle }) {
 
   return (
     <>
-      {currentChat ?
+      {currentChatRoom ?
         (<div className='h-full relative'>
 
           <HeaderSecCS

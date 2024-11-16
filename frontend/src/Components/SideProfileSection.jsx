@@ -1,7 +1,6 @@
 import React from 'react'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faPhone, faVideo } from '@fortawesome/free-solid-svg-icons';
-import profilePic from '../assets/profilePic.jpg';
 import { useSelector } from 'react-redux';
 
 

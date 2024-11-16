@@ -2,7 +2,7 @@ import React from 'react';
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../utils/Api';
-import { useDispatch, useSelector } from 'react-redux';
+import { useDispatch } from 'react-redux';
 import ChatListing from '../Components/ChatListing';
 import ChatSection from '../Components/ChatSection';
 import SideProfileSection from '../Components/SideProfileSection';

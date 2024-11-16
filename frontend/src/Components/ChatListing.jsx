@@ -3,12 +3,18 @@ import { format } from 'date-fns';
 import { useDispatch, useSelector } from 'react-redux';
 import { setCurrentChat } from '../store/chatSlice';
 import { setCurrentChatRoom } from '../store/chatRoomSlice';
-import userId from '../utils/UserId';
+// import userId from '../utils/UserId';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import api from '../utils/Api';
 import { faSearch, faArrowRight, faPlus } from '@fortawesome/free-solid-svg-icons';
+import { jwtDecode } from 'jwt-decode';
+
 
 function ChatListing({ newChatCard }) {
+
+    const token = localStorage.getItem('token');
+    const decodedToken = jwtDecode(token);
+    const userId = decodedToken.userId;
 
     const [activeChatRooms, setActiveChatRooms] = useState([]);
     const [isChatMenuVisible, setIsChatMenuVisible] = useState(null);
@@ -182,13 +188,15 @@ function ChatListing({ newChatCard }) {
 
                                 <div className='flex flex-col w-5/6 justify-center'>
                                     <div className='flex justify-between w-full mb-0'>
-                                    {chatRoom?.isGroupChat
-                                    ?
-                                    <p className='text-anotherPrimary font-semibold text-sm'>{chatRoom?.name}</p>
-                                    :
-                                    <p className='text-anotherPrimary font-semibold text-sm'>{chatRoom?.receiver?.userName}</p>
-                                }
-                                        <p className='text-xs text-font'>{format(new Date(chatRoom?.lastMessage?.createdAt), 'HH:mm')}</p>
+                                        {chatRoom?.isGroupChat
+                                            ?
+                                            <p className='text-anotherPrimary font-semibold text-sm'>{chatRoom?.name}</p>
+                                            :
+                                            <p className='text-anotherPrimary font-semibold text-sm'>{chatRoom?.receiver?.userName}</p>
+                                        }
+                                        <p className='text-xs text-font'>{chatRoom?.lastMessage?.createdAt
+                                            ? format(new Date(chatRoom.lastMessage.createdAt), 'HH:mm')
+                                            : 'N/A'}</p>
                                     </div>
                                     <div className='flex justify-between w-full mt-0'>
                                         <p className='text-xs text-font truncate'>{chatRoom?.lastMessage?.sender === userId ? 'You: ' + chatRoom?.lastMessage?.content : chatRoom?.lastMessage?.content}</p>

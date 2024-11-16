@@ -82,18 +82,25 @@ function NewChatSearch({ newChatCard }) {
         btnRef.current.click();
     }
 
-    const handleSubmitGrpDetail = (e) => {
+    const handleSubmitGrpDetail = async (e) => {
         e.preventDefault();
+        console.log(' Icon :  ',grpDetail.groupIcon);
+
         const formObj = new FormData();
-        formObj.append('name', grpDetail.name);
-        formObj.append('groupIcon', grpDetail.groupIcon);
+        formObj.append('name', grpDetail.name); // Append group name
+        formObj.append('groupIcon', grpDetail.groupIcon.inputIcon); // Append group icon
+        formObj.append('members', JSON.stringify(members)); // Append members array as JSON string
+    
+        console.log('Form Data:', [...formObj]);
         try {
-            const response = api.post('/api/chatRoom/groupChat', { formObj, members }, {
+            const response = await api.post('/api/chatRoom/groupChat', formObj, {
                 headers: { "content-type": "multipart/form-data" },
                 withCredentials: true
             })
             if (response.data.success) {
-                dispatch(setCurrentChatRoom(response.data.chatRoom));
+                dispatch(setCurrentChatRoom(response.data.groupChat));
+                handleGrpMode();
+                newChatCard();
             }
         } catch (err) {
             console.log(err);
@@ -105,13 +112,15 @@ function NewChatSearch({ newChatCard }) {
     const handleIconInputChange = (event) => {
 
         const inputIcon = event.target.files[0];
-        console.log(inputIcon);
+        console.log('input icon before :',inputIcon);
+
 
         if (inputIcon && inputIcon.type.startsWith('image/')) {
             const iconWithPreview = {
-                ...inputIcon,
+                inputIcon,
                 preview: URL.createObjectURL(inputIcon) // Added correct property name "preview"
             };
+            console.log('input icon after :',iconWithPreview)
             setGrpDetail(prevData => ({
                 ...prevData,
                 [event.target.name]: iconWithPreview
