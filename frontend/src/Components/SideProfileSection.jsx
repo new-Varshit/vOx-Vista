@@ -18,7 +18,7 @@ function SideProfileSection() {
                                 <img className='rounded-full' src={currentChatRoom?.groupIcon} alt="error" />
                             </div>
                             <div className='flex flex-col justify-center items-center gap-2'>
-                                <p className='font-bold  text-xl'>{currentChatRoom.name}</p>
+                                <p className='font-bold  text-xl'>{currentChatRoom?.name}</p>
                             </div>
                             <div className='flex justify-evenly items-center '>
                                 <div className='w-1/2 text-center border-r-2 border-white'>
@@ -38,8 +38,8 @@ function SideProfileSection() {
                                 <img className='rounded-full' src={currentChat?.profile?.profilePic} alt="error" />
                             </div>
                             <div className='flex flex-col justify-center items-center gap-2'>
-                                <p className='font-bold  text-xl'>{currentChat.userName}</p>
-                                <p className='text-gray-600 text-base font-semibold'>{currentChat.email}</p>
+                                <p className='font-bold  text-xl'>{currentChat?.userName}</p>
+                                <p className='text-gray-600 text-base font-semibold'>{currentChat?.email}</p>
                                 <p className='text-gray-500 text-center text-sm font-medium'>{currentChat?.profile?.bio}</p>
                             </div>
                             <div className='flex justify-evenly items-center '>

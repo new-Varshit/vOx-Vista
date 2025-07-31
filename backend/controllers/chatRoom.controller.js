@@ -199,6 +199,7 @@ export const dltChatRoom = async (req, res) => {
 }
 
 export const searchActiveChatRoom = async (req, res) => {
+    console.log('yo');
     const userId = req.id.userId;
     const { searchChatRoom } = req.query;
     // if(!searchChatRoom){
@@ -209,7 +210,7 @@ export const searchActiveChatRoom = async (req, res) => {
             members: { $in: [userId] },
         }).populate('members').populate('lastMessage');
 
-        console.log('before promises', chatRooms)
+        // console.log('before promises', chatRooms)
 
         const chatRoomsPromises = chatRooms.map(async chat => {
 
@@ -233,7 +234,7 @@ export const searchActiveChatRoom = async (req, res) => {
 
         chatRooms = (await Promise.all(chatRoomsPromises)).filter(chatRoom => chatRoom !== null);
 
-        console.log('after promises', chatRooms);
+        // console.log('after promises', chatRooms);
 
         return res.status(200).json({
             success: true,

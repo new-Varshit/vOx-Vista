@@ -16,7 +16,7 @@ function ChatSection({ sideProfileCard, isSideProfileCard, delOptCardToggle }) {
   const currentChat = useSelector((state) => state.chat.currentChat);
   const currentChatRoom = useSelector((state) => state.chatRoom.currentChatRoom);
   const targetLanguage = useSelector((state) => state.lng.targetLanguage);
-
+        
   const token = localStorage.getItem('token');
   const decodedToken = jwtDecode(token);
   const userId = decodedToken.userId;
@@ -79,6 +79,7 @@ function ChatSection({ sideProfileCard, isSideProfileCard, delOptCardToggle }) {
     targetLanguageRef.current = targetLanguage;
   }, [targetLanguage]);
 
+  // console.log("yo bro",targetLanguageRef.current);
 
   //handling receiving messages ,  callback function for 'receiveMessage' socket.io event listener
   const handleReceiveMessage = useCallback(async (message) => {
@@ -91,6 +92,8 @@ function ChatSection({ sideProfileCard, isSideProfileCard, delOptCardToggle }) {
           targetLanguage: targetLanguageRef.current,
           message
         }, { withCredentials: true });
+               
+        console.log(response.data);
 
         if (response.data.success) {
           message = response.data.translatedMessage;
@@ -435,7 +438,7 @@ function ChatSection({ sideProfileCard, isSideProfileCard, delOptCardToggle }) {
 
   return (
     <>
-      {currentChatRoom ?
+      {currentChat ?
         (<div className='h-full relative'>
 
           <HeaderSecCS

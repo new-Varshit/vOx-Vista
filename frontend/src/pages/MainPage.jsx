@@ -20,6 +20,7 @@ function MainPage() {
     const navigate = useNavigate();
     const dispatch = useDispatch();
 
+    const [activeChatRooms, setActiveChatRooms] = useState([]);
     const [isSideProfileCard, setIsSideProfileCard] = useState(false);
     const [isProfileCardVisible, setisProfileCardVisible] = useState(false);
     const [isNewChatCardVisible, setIsNewChatCardVisible] = useState(false);
@@ -115,6 +116,22 @@ function MainPage() {
         checkSession();
     }, [])
 
+        const fetchActiveChatRooms = async () => {
+            try {
+                const response = await api.get('/api/chatRoom/getAllChatRooms', {
+                    withCredentials: true
+                });
+                if (response.data.success) {
+                    console.log(response.data.chatRooms);
+                    setActiveChatRooms(response.data.chatRooms.filter(chatRoom => !chatRoom.deletedFor.includes(userId)));
+                }
+            } catch (err) {
+                console.log(err);
+            }
+        }
+        
+   
+
     return (
         <>
             <div className='h-screen flex'>
@@ -152,13 +169,13 @@ function MainPage() {
                     </div>
 
                     <div className='flex-1 overflow-auto bg-gray-200 m-2 rounded-bl-2xl mt-0'>
-                        <ChatListing newChatCard={newChatCard} />
+                        <ChatListing newChatCard={newChatCard} setActiveChatRooms={setActiveChatRooms} activeChatRooms={activeChatRooms} fetchActiveChatRooms={fetchActiveChatRooms} />
                     </div>
                 </div>
 
 
                 <div className={`${isSideProfileCard ? 'w-1/2' : 'w-3/4'}   h-full py-2`}>
-                    <ChatSection sideProfileCard={sideProfileCard} isSideProfileCard={isSideProfileCard} delOptCardToggle={delOptCardToggle} />
+                    <ChatSection sideProfileCard={sideProfileCard} fetchActiveChatRooms={fetchActiveChatRooms} isSideProfileCard={isSideProfileCard} delOptCardToggle={delOptCardToggle} />
                 </div>
 
 
@@ -177,9 +194,9 @@ function MainPage() {
                 }
                 {isDelOptCardVisible &&
                     (
-                        <div className='h-screen w-full z-10 absolute bg-transparent backdrop-blur-md flex justify-center items-center' onClick={() => setIsDelOptCardVisible(false)}>
-                            <div className='w-1/4 py-6 px-6 bg-gray-200 flex flex-col  rounded-xl'>
-                                <div className='flex justify-end'>
+                        <div className ='h-screen w-full z-10 absolute bg-transparent backdrop-blur-md flex justify-center items-center' onClick={() => setIsDelOptCardVisible(false)}>
+                            <div className ='w-1/4 py-6 px-6 bg-gray-200 flex flex-col  rounded-xl'>
+                                <div className ='flex justify-end'>
                                     <FontAwesomeIcon icon={faTimes} className='text-lg text-anotherPrimary' />
                                 </div>
                                 <div className='flex flex-col gap-4 '>

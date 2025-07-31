@@ -42,18 +42,18 @@ function NewChatSearch({ newChatCard }) {
     const handleChatClick = async (newChat) => {
         newChatCard();
         dispatch(setCurrentChat(newChat));
-        let recipientID = newChat._id;
-        try {
-            const response = await api.post('/api/chatRoom', { recipientID }, {
-                withCredentials: true
-            })
-            if (response.data.success) {
-                dispatch(setCurrentChatRoom(response.data.chatRoom));
-            }
-            console.log(response.data.chatRoom);
-        } catch (err) {
-            console.log(err)
-        }
+        // let recipientID = newChat._id;
+        // try {
+        //     const response = await api.post('/api/chatRoom', { recipientID }, {
+        //         withCredentials: true
+        //     })
+        //     if (response.data.success) {
+        //         dispatch(setCurrentChatRoom(response.data.chatRoom));
+        //     }
+        //     console.log(response.data.chatRoom);
+        // } catch (err) {
+        //     console.log(err)
+        // }
     }
 
     const handleSelMemClick = (newChat) => {

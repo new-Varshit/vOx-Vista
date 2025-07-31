@@ -10,13 +10,13 @@ import { faSearch, faArrowRight, faPlus } from '@fortawesome/free-solid-svg-icon
 import { jwtDecode } from 'jwt-decode';
 
 
-function ChatListing({ newChatCard }) {
+function ChatListing({ newChatCard , setActiveChatRooms ,fetchActiveChatRooms ,activeChatRooms }) {
 
     const token = localStorage.getItem('token');
     const decodedToken = jwtDecode(token);
     const userId = decodedToken.userId;
 
-    const [activeChatRooms, setActiveChatRooms] = useState([]);
+    // const [activeChatRooms, setActiveChatRooms] = useState([]);
     const [isChatMenuVisible, setIsChatMenuVisible] = useState(null);
     const [searchChatRoom, setSearchChatRoom] = useState('');
 
@@ -28,9 +28,9 @@ function ChatListing({ newChatCard }) {
     const dispatch = useDispatch();
 
     useEffect(() => {
-        if (!searchChatRoom.trim()) {
-            return;
-        }
+        // if (!searchChatRoom.trim()) {
+        //     return;
+        // }
         const searchActiveUser = async () => {
             try {
                 const response = await api.get('/api/chatRoom/searchActiveChatRoom', {
@@ -117,19 +117,19 @@ function ChatListing({ newChatCard }) {
 
 
     useEffect(() => {
-        const fetchActiveChatRooms = async () => {
-            try {
-                const response = await api.get('/api/chatRoom/getAllChatRooms', {
-                    withCredentials: true
-                });
-                if (response.data.success) {
-                    console.log(response.data.chatRooms);
-                    setActiveChatRooms(response.data.chatRooms.filter(chatRoom => !chatRoom.deletedFor.includes(userId)));
-                }
-            } catch (err) {
-                console.log(err);
-            }
-        }
+        // const fetchActiveChatRooms = async () => {
+        //     try {
+        //         const response = await api.get('/api/chatRoom/getAllChatRooms', {
+        //             withCredentials: true
+        //         });
+        //         if (response.data.success) {
+        //             console.log(response.data.chatRooms);
+        //             setActiveChatRooms(response.data.chatRooms.filter(chatRoom => !chatRoom.deletedFor.includes(userId)));
+        //         }
+        //     } catch (err) {
+        //         console.log(err);
+        //     }
+        // }
         fetchActiveChatRooms();
     }, [currentChatRoom]);
 
@@ -182,34 +182,36 @@ function ChatListing({ newChatCard }) {
                         :
                         activeChatRooms.map((chatRoom) => (
 
-                            <div className='flex justify-start gap-3 relative overflow-visible' key={chatRoom._id} ref={menuRef} onContextMenu={(e) => handleChatMenuToggle(chatRoom._id, e)} onClick={chatRoom?.isGroupChat ? () => handleGroupChatClick(chatRoom) : () => handleChatClick(chatRoom.receiver)}>
+                            <div className='flex items-center gap-4 p-2 cursor-pointer hover:bg-gray-100 rounded-xl relative' key={chatRoom._id} ref={menuRef} onContextMenu={(e) => handleChatMenuToggle(chatRoom._id, e)} onClick={chatRoom?.isGroupChat ? () => handleGroupChatClick(chatRoom) : () => handleChatClick(chatRoom.receiver)}>
 
                                 {chatRoom?.isGroupChat
                                     ?
-                                    <img className='rounded-full w-[15%]' src={chatRoom?.groupIcon} alt="profile picture" />
+                                    <img className='w-12 h-12 object-cover rounded-full border border-gray-300' src={chatRoom?.groupIcon} alt="profile picture" />
                                     :
-                                    <img className='rounded-full w-[15%]' src={chatRoom?.receiver?.profile?.profilePic} alt="profile picture" />
+                                    <img className='w-12 h-12 object-cover rounded-full border border-gray-300' src={chatRoom?.receiver?.profile?.profilePic} alt="profile picture" />
                                 }
 
                                 <div className='flex flex-col w-5/6 justify-center'>
                                     <div className='flex justify-between w-full mb-0'>
                                         {chatRoom?.isGroupChat
                                             ?
-                                            <p className='text-anotherPrimary font-semibold text-sm'>{chatRoom?.name}</p>
+                                            <p className='text-anotherPrimary text-base font-medium truncate'>{chatRoom?.name}</p>
                                             :
-                                            <p className='text-anotherPrimary font-semibold text-sm'>{chatRoom?.receiver?.userName}</p>
+                                            <p className='text-anotherPrimary text-base font-medium truncate'>{chatRoom?.receiver?.userName}</p>
                                         }
                                         <p className='text-xs text-font'>{chatRoom?.lastMessage?.createdAt
                                             ? format(new Date(chatRoom.lastMessage.createdAt), 'HH:mm')
                                             : 'N/A'}</p>
                                     </div>
                                     <div className='flex justify-between w-full mt-0'>
-                                        <p className='text-xs text-font truncate'>{chatRoom?.lastMessage?.sender === userId ? 'You: ' + chatRoom?.lastMessage?.content : chatRoom?.lastMessage?.content}</p>
+                                        <p className='text-sm text-gray-600 truncate max-w-[70%]'>{chatRoom?.lastMessage?.sender === userId ? 'You: ' + chatRoom?.lastMessage?.content : chatRoom?.lastMessage?.content}</p>
 
-                                        {!chatRoom?.isGroupChat &&
-                                            <p className={`${chatRoom?.unreadMsgs === 0 || currentChatRoom?._id === chatRoom._id ? 'bg-gray-200 text-gray-200' : 'bg-anotherPrimary text-white'} rounded-full text-xs font-semibold px-1 text-center flex items-center`}>{chatRoom?.unreadMsgs}</p>
+                                        {!chatRoom?.isGroupChat && chatRoom?.unreadMsgs > 0 && (
+                                            <p className='min-w-[20px] h-[20px] px-2 rounded-full text-xs font-semibold text-white bg-anotherPrimary text-center flex items-center justify-center'>
+                                                {chatRoom.unreadMsgs}
+                                            </p>
+                                        )}
 
-                                        }
                                     </div>
                                 </div>
                                 {
