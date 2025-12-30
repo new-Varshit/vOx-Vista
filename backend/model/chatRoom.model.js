@@ -16,6 +16,11 @@ const chatRoomSchema = new mongoose.Schema({
         type: mongoose.Schema.Types.ObjectId,
         ref:'Message'
     },
+    hasMessage:{
+         type: Boolean,
+         required: true,
+         default: false
+    },
     deletedFor:[
         {
          type:mongoose.Schema.Types.ObjectId,

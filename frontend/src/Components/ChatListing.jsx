@@ -10,7 +10,7 @@ import { faSearch, faArrowRight, faPlus } from '@fortawesome/free-solid-svg-icon
 import { jwtDecode } from 'jwt-decode';
 
 
-function ChatListing({ newChatCard , setActiveChatRooms ,fetchActiveChatRooms ,activeChatRooms }) {
+function ChatListing({ newChatCard, setActiveChatRooms, fetchActiveChatRooms, activeChatRooms }) {
 
     const token = localStorage.getItem('token');
     const decodedToken = jwtDecode(token);
@@ -27,25 +27,7 @@ function ChatListing({ newChatCard , setActiveChatRooms ,fetchActiveChatRooms ,a
 
     const dispatch = useDispatch();
 
-    useEffect(() => {
-        // if (!searchChatRoom.trim()) {
-        //     return;
-        // }
-        const searchActiveUser = async () => {
-            try {
-                const response = await api.get('/api/chatRoom/searchActiveChatRoom', {
-                    params: { searchChatRoom },
-                    withCredentials: true
-                })
-                if (response.data.success) {
-                    setActiveChatRooms(response.data.chatRooms);
-                }
-            } catch (err) {
-                console.log(err);
-            }
-        }
-        searchActiveUser();
-    }, [searchChatRoom])
+
 
 
     const handleChatClick = async (newChat) => {
@@ -115,25 +97,71 @@ function ChatListing({ newChatCard , setActiveChatRooms ,fetchActiveChatRooms ,a
         }
     };
 
+    // useEffect(() => {
+    //     // if (!searchChatRoom.trim()) {
+    //     //     return;
+    //     // }
+    //     const searchActiveUser = async () => {
+    //         try {
+    //             const response = await api.get('/api/chatRoom/searchActiveChatRoom', {
+    //                 params: { searchChatRoom },
+    //                 withCredentials: true
+    //             })
+    //             if (response.data.success) {
+    //                 setActiveChatRooms(response.data.chatRooms);
+    //             }
+    //         } catch (err) {
+    //             console.log(err);
+    //         }
+    //     }
+    //     searchActiveUser();
+    // }, [searchChatRoom])
 
-    useEffect(() => {
-        // const fetchActiveChatRooms = async () => {
-        //     try {
-        //         const response = await api.get('/api/chatRoom/getAllChatRooms', {
-        //             withCredentials: true
-        //         });
-        //         if (response.data.success) {
-        //             console.log(response.data.chatRooms);
-        //             setActiveChatRooms(response.data.chatRooms.filter(chatRoom => !chatRoom.deletedFor.includes(userId)));
-        //         }
-        //     } catch (err) {
-        //         console.log(err);
-        //     }
-        // }
-        fetchActiveChatRooms();
-    }, [currentChatRoom]);
+    // useEffect(() => {
+    //     const fetchActiveChatRooms = async () => {
+    //         try {
+    //             const response = await api.get('/api/chatRoom/getAllChatRooms', {
+    //                 withCredentials: true
+    //             });
+    //             if (response.data.success) {
+    //                 console.log(response.data.chatRooms);
+    //                 setActiveChatRooms(response.data.chatRooms.filter(chatRoom => !chatRoom.deletedFor.includes(userId)));
+    //             }
+    //         } catch (err) {
+    //             console.log(err);
+    //         }
+    //     }
+    //     fetchActiveChatRooms();
+    //     console.log("activechatrroms:", activeChatRooms);
+    // }, [currentChatRoom]);
 
+    const fetchChatRooms = async () => {
+        try {
+            if (searchChatRoom.trim()) {
+                const response = await api.get('/api/chatRoom/searchActiveChatRoom', {
+                    params: { searchChatRoom },
+                    withCredentials: true
+                })
+                if (response.data.success) {
+                    setActiveChatRooms(response.data.chatRooms);
+                }
+            } else {
+                const response = await api.get('/api/chatRoom/getAllChatRooms', {
+                    withCredentials: true
+                });
+                if (response.data.success) {
+                    setActiveChatRooms(response.data.chatRooms);
+                }
+            }
+        } catch (err) {
+            console.log(err);
+        }
 
+    }
+      
+    useEffect(()=>{
+          fetchChatRooms();
+    },[currentChatRoom,searchChatRoom])
 
     useEffect(() => {
         document.addEventListener('click', handleClickOutside);

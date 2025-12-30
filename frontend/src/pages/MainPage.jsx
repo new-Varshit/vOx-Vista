@@ -26,7 +26,7 @@ function MainPage() {
     const [isNewChatCardVisible, setIsNewChatCardVisible] = useState(false);
     const [isDelOptCardVisible, setIsDelOptCardVisible] = useState(false);
     const [profileData, setProfileData] = useState('');
-    const [msgId,setMsgId] = useState(null);
+    const [msgId, setMsgId] = useState(null);
 
     const profileCardToggle = () => {
         setisProfileCardVisible(!isProfileCardVisible);
@@ -41,35 +41,61 @@ function MainPage() {
     }
 
     const delOptCardToggle = (msgId) => {
-        if(msgId){
+        if (msgId) {
             setMsgId(msgId);
         }
         setIsDelOptCardVisible(true);
     }
 
-    const deleteSelectedMsg = async () =>{
-        try{ 
-            const response = await api.post('/api/message/deleteSelectedMsgs',{selectedMsgs:[msgId]},{
-                withCredentials:true
-              })
-              if(response.data.success){
+
+    useEffect(() => {
+        const checkSession = async () => {
+            try {
+                const response = await api.get('/api/auth/check-session', {
+                    withCredentials: true
+                })
+                console.log('Session check response:', response);
+
+                if (response.data.success) {
+                    dispatch(logIn(response.data.userId));
+                    setProfileData(response.data.profileData);
+
+                } else {
+                    dispatch(logOut());
+                    navigate('/login');
+                }
+            } catch (err) {
+                console.log(err);
+                dispatch(logOut());
+                navigate('/login');
+            }
+        }
+        checkSession();
+    }, [])
+
+    const deleteSelectedMsg = async () => {
+        try {
+            const response = await api.post('/api/message/deleteSelectedMsgs', { selectedMsgs: [msgId] }, {
+                withCredentials: true
+            })
+            if (response.data.success) {
                 console.log('deleted your message for you only...');
-                  setIsDelOptCardVisible(false);
-              }
-                }catch(err){
+                setIsDelOptCardVisible(false);
+            }
+        } catch (err) {
             console.log(err);
         }
     }
 
-    const deleteMsgForEveryone = async () =>{
-        try{
-        const response = await api.post(`/api/message/deleteMsgForEveryone/${msgId}`,null,{
-            withCredentials:true
-        })
-        if(response.data.success){
-            console.log('deleted Your message for everyone...');
-        }
-        }catch(err){
+    const deleteMsgForEveryone = async () => {
+        try {
+            const response = await api.post(`/api/message/deleteMsgForEveryone/${msgId}`, null, {
+                withCredentials: true
+            })
+            if (response.data.success) {
+                console.log('deleted Your message for everyone...');
+            }
+        } catch (err) {
             console.log(err);
         }
     }
@@ -91,46 +117,23 @@ function MainPage() {
         }
     }
 
-    useEffect(() => {
-        const checkSession = async () => {
-            try {
-                const response = await api.get('/api/auth/check-session', {
-                    withCredentials: true
-                })
-                    console.log('Session check response:', response);
 
-                if (response.data.success) {
-                    dispatch(logIn(response.data.userId));
-                    setProfileData(response.data.profileData);
 
-                } else {
-                    dispatch(logOut());
-                    navigate('/login');
-                }
-            } catch (err) {
-                console.log(err);
-                dispatch(logOut());
-                navigate('/login');
+    const fetchActiveChatRooms = async () => {
+        try {
+            const response = await api.get('/api/chatRoom/getAllChatRooms', {
+                withCredentials: true
+            });
+            if (response.data.success) {
+                console.log(response.data.chatRooms);
+                setActiveChatRooms(response.data.chatRooms.filter(chatRoom => !chatRoom.deletedFor.includes(userId)));
             }
+        } catch (err) {
+            console.log(err);
         }
-        checkSession();
-    }, [])
+    }
 
-        const fetchActiveChatRooms = async () => {
-            try {
-                const response = await api.get('/api/chatRoom/getAllChatRooms', {
-                    withCredentials: true
-                });
-                if (response.data.success) {
-                    console.log(response.data.chatRooms);
-                    setActiveChatRooms(response.data.chatRooms.filter(chatRoom => !chatRoom.deletedFor.includes(userId)));
-                }
-            } catch (err) {
-                console.log(err);
-            }
-        }
-        
-   
+
 
     return (
         <>
@@ -145,11 +148,17 @@ function MainPage() {
 
                         <div className='flex justify-between'>
                             <div className='flex gap-4 justify-start items-center'>
-                                <div className='w-1/5 rounded-xl overflow-hidden'>
+                                <div className="w-1/5 aspect-square rounded-full overflow-hidden border-2 border-gray-300 shadow-md">
                                     {profileData?.profile?.profilePic && (
-                                        <img className='' src={profileData.profile.profilePic} alt="profile Pic" />
+                                        <img
+                                            src={profileData.profile.profilePic}
+                                            alt="Profile"
+                                            className="w-full h-full object-cover rounded-full transition-transform duration-300 hover:scale-105"
+
+                                        />
                                     )}
                                 </div>
+
                                 <div>
                                     <p className=' text-anotherPrimary  font-bold'>{profileData.userName}</p>
                                     <p className='text-font text-sm'>{profileData.email}</p>
@@ -194,9 +203,9 @@ function MainPage() {
                 }
                 {isDelOptCardVisible &&
                     (
-                        <div className ='h-screen w-full z-10 absolute bg-transparent backdrop-blur-md flex justify-center items-center' onClick={() => setIsDelOptCardVisible(false)}>
-                            <div className ='w-1/4 py-6 px-6 bg-gray-200 flex flex-col  rounded-xl'>
-                                <div className ='flex justify-end'>
+                        <div className='h-screen w-full z-10 absolute bg-transparent backdrop-blur-md flex justify-center items-center' onClick={() => setIsDelOptCardVisible(false)}>
+                            <div className='w-1/4 py-6 px-6 bg-gray-200 flex flex-col  rounded-xl'>
+                                <div className='flex justify-end'>
                                     <FontAwesomeIcon icon={faTimes} className='text-lg text-anotherPrimary' />
                                 </div>
                                 <div className='flex flex-col gap-4 '>

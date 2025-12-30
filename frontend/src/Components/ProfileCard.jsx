@@ -8,12 +8,12 @@ import { faTimes, faArrowRight } from '@fortawesome/free-solid-svg-icons';
 function profileCard({ profileCardToggle, profileData: initialProfileData }) {
     const [profileData, setProfileData] = useState(initialProfileData);
     const [initialProfilePic, setInitialProfilepic] = useState('');
-    const [loading,setLoading] = useState(false);
+    const [loading, setLoading] = useState(false);
 
     useEffect(() => {
         try {
             setInitialProfilepic(initialProfileData?.profile?.profilePic);
-        } catch (err) { 
+        } catch (err) {
             console.log(err);
         }
 
@@ -78,7 +78,7 @@ function profileCard({ profileCardToggle, profileData: initialProfileData }) {
             }
         } catch (err) {
             console.log(err);
-        }finally{
+        } finally {
             setLoading(false);
         }
     }
@@ -94,10 +94,16 @@ function profileCard({ profileCardToggle, profileData: initialProfileData }) {
                     <FontAwesomeIcon icon={faTimes} className=" hover:text-blue-900  " size='lg' />
                 </div>
                 <div className='flex flex-col gap-4'>
-                    <div className='overflow-hidden w-1/3 rounded-full mx-auto p-1 bg-anotherPrimary'>
-                        <img className='rounded-full' src={initialProfilePic} alt="error" />
-
+                    <div className="w-1/3 aspect-square mx-auto rounded-full p-1 bg-anotherPrimary shadow-md">
+                        <div className="w-full h-full rounded-full overflow-hidden bg-white">
+                            <img
+                                src={initialProfilePic}
+                                alt="Profile"
+                                className="w-full h-full object-cover rounded-full transition-transform duration-300 hover:scale-105"
+                            />
+                        </div>
                     </div>
+
 
                     <form className='flex flex-col gap-4 justify-center items-center' onSubmit={handleSubmit}>
 

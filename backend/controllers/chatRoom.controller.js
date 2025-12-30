@@ -37,10 +37,10 @@ export const createOrGetChatRoom = async (req, res) => {
 export const createGroupChat = async (req, res) => {
     console.log('hello creating group chat')
     const { name } = req.body;
-      const members = JSON.parse(req.body.members);
+    const members = JSON.parse(req.body.members);
     const groupIcon = req.file;
     const userId = req.id?.userId;
-    console.log(members,name);
+    console.log(members, name);
     console.log(req.file);
 
     if (!members || !name || !groupIcon) {
@@ -49,7 +49,7 @@ export const createGroupChat = async (req, res) => {
             message: 'Invalid input data'
         });
     }
-   
+
 
     const uriData = getDataUri(req.file); // Adjusted to handle single file input
 
@@ -67,9 +67,9 @@ export const createGroupChat = async (req, res) => {
     }
 
     members.push(userId);
-         let groupChat;
+    let groupChat;
     try {
-         groupChat = await ChatRoom.create({
+        groupChat = await ChatRoom.create({
             name: name,
             isGroupChat: true,
             admin: userId,
@@ -77,7 +77,7 @@ export const createGroupChat = async (req, res) => {
             groupIcon: cloudResponse.secure_url
         });
 
-          groupChat = await groupChat.populate('members');
+        groupChat = await groupChat.populate('members');
 
         console.log(groupChat);
 
@@ -102,14 +102,20 @@ export const getAllChatRooms = async (req, res) => {
     // console.log('the user id is : ', userId);
     try {
         const chats = await ChatRoom.find({
-            members: { $in: [userId] }
-        }).populate('members').populate('lastMessage');
+            members: { $in: [userId] },
+            hasMessage: true,
+            deletedFor: { $ne: userId }
+        })
+            .populate('members')
+            .populate('lastMessage');
 
+        
+            // console.log("all chats",chats);
 
 
         const chatRoomsPromises = chats.map(async chat => {
-                       let lastMessage;
-            if(!chat.isGroupChat){
+            let lastMessage;
+            if (!chat.isGroupChat) {
                 const receiverProfile = chat.members.find(member => String(member._id) !== String(userId));
 
                 const unreadMsgs = await getNumberOfUnreadMsgs(chat._id, receiverProfile._id);
@@ -123,26 +129,22 @@ export const getAllChatRooms = async (req, res) => {
                     unreadMsgs,
                     lastMessage
                 }
-            }else{
-                 lastMessage = await Message.findOne({
+            } else {
+                lastMessage = await Message.findOne({
                     chatRoom: chat._id,
                     deletedFor: { $ne: userId }
                 }).sort({ createdAt: -1 });
-
+       
                 return {
                     ...chat.toObject(),
                     lastMessage
                 }
             }
 
-
-           
         });
 
-
-
         const chatRooms = await Promise.all(chatRoomsPromises);
-
+                    // console.log("again ",chatRooms);
         return res.status(200).json({
             success: true,
             chatRooms
@@ -207,7 +209,7 @@ export const searchActiveChatRoom = async (req, res) => {
     // }
     try {
         let chatRooms = await ChatRoom.find({
-            members: { $in: [userId] },
+            members: { $in: [userId] }, hasMessage : true,deletedFor: { $ne: userId }
         }).populate('members').populate('lastMessage');
 
         // console.log('before promises', chatRooms)

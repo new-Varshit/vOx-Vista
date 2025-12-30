@@ -438,7 +438,7 @@ function ChatSection({ sideProfileCard, isSideProfileCard, delOptCardToggle }) {
 
   return (
     <>
-      {currentChat ?
+      {currentChatRoom ?
         (<div className='h-full relative'>
 
           <HeaderSecCS

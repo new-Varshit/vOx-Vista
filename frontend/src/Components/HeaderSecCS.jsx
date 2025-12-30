@@ -40,20 +40,28 @@ function HeaderSecCS({
                 :
                 (<div className='flex justify-between items-center gap-2 py-4 ml-7 w-11/12'>
 
-                    {currentChatRoom?.isGroupChat  ?
+                    {currentChatRoom?.isGroupChat ?
 
                         <div className='flex items-center  gap-4'>
-                            <div className='overflow-hidden rounded-full'>
-                                <img className='w-12' src={currentChatRoom?.groupIcon} alt="" onClick={sideProfileCard} />
+                            <div
+                                className="w-12 h-12 rounded-full overflow-hidden flex items-center justify-center cursor-pointer border border-gray-300 hover:opacity-90 transition"
+                                onClick={sideProfileCard}
+                            >
+                                <img
+                                    src={currentChatRoom?.groupIcon}
+                                    alt="Group profile"
+                                    className="w-full h-full object-cover"
+                                />
                             </div>
+
                             <div className='flex flex-col '>
                                 <p className='font-semibold  text-sm'>{currentChatRoom.name}</p>
                                 <div className='flex flex-row'>
-                                        {currentChatRoom?.members.map((member)=>(
-                                             <p className='text-xs'>{member.userName + ", "}</p>
-                                        ))}
+                                    {currentChatRoom?.members.map((member) => (
+                                        <p className='text-xs'>{member.userName + ", "}</p>
+                                    ))}
                                 </div>
-                                {currentChatRoom.members.some(member=>typingUsers.includes(member._id))
+                                {currentChatRoom.members.some(member => typingUsers.includes(member._id))
                                     &&
                                     <p className='text-xs font-semibold text-green-500'>Typing...</p>
                                 }
@@ -63,8 +71,8 @@ function HeaderSecCS({
                         :
 
                         <div className='flex items-center  gap-4'>
-                            <div className='overflow-hidden rounded-full'>
-                                <img className='w-12' src={currentChat?.profile?.profilePic} alt="" onClick={sideProfileCard} />
+                            <div className="w-12 h-12 rounded-full overflow-hidden flex items-center justify-center cursor-pointer border border-gray-300 hover:opacity-90 transition">
+                                <img className="w-full h-full object-cover" src={currentChat?.profile?.profilePic} alt="" onClick={sideProfileCard} />
                             </div>
                             <div className='flex flex-col '>
                                 <p className='font-semibold  text-sm'>{currentChat.userName}</p>
