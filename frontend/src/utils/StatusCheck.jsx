@@ -4,6 +4,7 @@ import { faCheck, faCheckDouble } from '@fortawesome/free-solid-svg-icons';
 
 
 
+<<<<<<< HEAD
 function StatusCheck({ userId, deliveredTo = [], readBy = [], currentChatRoom }) {
   if (!currentChatRoom?.members?.length) return null;
 
@@ -32,3 +33,18 @@ function StatusCheck({ userId, deliveredTo = [], readBy = [], currentChatRoom })
 
 
 export default StatusCheck 
+=======
+function StatusCheck({msgStatus}) {
+    if (msgStatus === 'read') {
+        return (<FontAwesomeIcon icon={faCheckDouble} className='text-cyan-400 text-xs' />)
+  
+      } else if (msgStatus === 'delivered') {
+        return (<FontAwesomeIcon icon={faCheckDouble} className='text-gray-300 text-xs' />)
+  
+      } else {
+        return (<FontAwesomeIcon icon={faCheck} className='text-gray-300 text-xs' />)
+      }
+}
+
+export default StatusCheck
+>>>>>>> 1231b23454122c208aeaebd61de14996fa854556

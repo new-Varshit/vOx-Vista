@@ -7,12 +7,16 @@ import MessageSecCS from './MessageSecCS';
 import InputAreaCS from './InputAreaCS';
 import HeaderSecCS from './HeaderSecCS';
 import { jwtDecode } from 'jwt-decode';
+<<<<<<< HEAD
 import userId from '../utils/UserId';
 // import useChatSocket from '../hooks/useChatSocket';
+=======
+>>>>>>> 1231b23454122c208aeaebd61de14996fa854556
 
 
 function ChatSection({
 
+<<<<<<< HEAD
   setActiveChatRooms,
   socketRef,
   emitTyping,
@@ -28,10 +32,13 @@ function ChatSection({
 
 }) {
 
+=======
+>>>>>>> 1231b23454122c208aeaebd61de14996fa854556
   //getting the recipient id and chatroom from redux store
   const currentChat = useSelector((state) => state.chat.currentChat);
   const currentChatRoom = useSelector((state) => state.chatRoom.currentChatRoom);
   const targetLanguage = useSelector((state) => state.lng.targetLanguage);
+<<<<<<< HEAD
   const currentChatRoomRef = useRef(null);
 
   useEffect(() => {
@@ -107,7 +114,12 @@ function ChatSection({
   );
 
 
+=======
+>>>>>>> 1231b23454122c208aeaebd61de14996fa854556
 
+  const token = localStorage.getItem('token');
+  const decodedToken = jwtDecode(token);
+  const userId = decodedToken.userId;
   //all the states using
   const [isTyping, setIsTyping] = useState(false);
   const [typingUsers, setTypingUsers] = useState([]);
@@ -118,13 +130,20 @@ function ChatSection({
   const [inSelectMode, setSelectMode] = useState(false);
   const [selectedMsgs, setSelectedMsgs] = useState([]);
   const [selectedFiles, setSelectedFiles] = useState([]);
+<<<<<<< HEAD
   const [isAtBottom, setIsAtBottom] = useState(true);
+=======
+>>>>>>> 1231b23454122c208aeaebd61de14996fa854556
 
   //references we are using 
   const typingTimeoutRef = useRef(null);
   const lastMessageRef = useRef(null);
+<<<<<<< HEAD
   // const socket = useRef(null);
 
+=======
+  const socket = useRef(null);
+>>>>>>> 1231b23454122c208aeaebd61de14996fa854556
 
 
   const typingObj = {
@@ -132,6 +151,7 @@ function ChatSection({
     chatRoomId: currentChatRoom?._id
   }
 
+<<<<<<< HEAD
 
 
   // Mark messages as read when chat is active and user is viewing
@@ -237,6 +257,8 @@ function ChatSection({
 
 
 
+=======
+>>>>>>> 1231b23454122c208aeaebd61de14996fa854556
   // to dynamically showing if recipient is typing using socket.io
 
 
@@ -277,6 +299,177 @@ function ChatSection({
 
 
 
+<<<<<<< HEAD
+=======
+
+  //updating all the messages of a chat to delivered in the database
+  const updateMessagesDelivered = useCallback(async () => {
+    try {
+      await api.post(`/api/message/updateAllMsgsToDelivered`, null, {
+        withCredentials: true,
+      });
+    } catch (err) {
+      console.error('Error updating message delivery status:', err);
+    }
+  }, []);
+
+
+  const targetLanguageRef = useRef(targetLanguage);
+  useEffect(() => {
+    targetLanguageRef.current = targetLanguage;
+  }, [targetLanguage]);
+
+
+  //handling receiving messages ,  callback function for 'receiveMessage' socket.io event listener
+  const handleReceiveMessage = useCallback(async (message) => {
+    console.log('message: ', message);
+    //updating the receved message in real time
+    if (targetLanguageRef.current && message.sender._id !== userId) {
+      console.log("Translating message to target language:", targetLanguageRef.current);
+      try {
+        const response = await api.post('/api/translate/translateMsg', {
+          targetLanguage: targetLanguageRef.current,
+          message
+        }, { withCredentials: true });
+
+        if (response.data.success) {
+          message = response.data.translatedMessage;
+        }
+      } catch (error) {
+        console.error("Translation error:", error);
+      }
+    }
+
+    setMessages((prevMessages) => [...prevMessages, message]);
+
+
+    if (message.sender._id !== userId) {
+      //updating receiving to delivered 
+      updateMessagesDelivered();
+
+      if (socket.current) {
+        const currentRoom = currentChat;
+        const updatedMessage = {
+          ...message,
+          inChatRoom: !!currentRoom
+        };
+        //emitting the event 'delivered' to notify the user that message has been delivered
+        socket.current.emit('delivered', updatedMessage);
+      }
+    }
+  }, [updateMessagesDelivered, currentChat]);
+
+
+
+
+
+
+  //setting up connection and other socket.io events
+  useEffect(() => {
+
+    //updating  messages  to delivered whenver user open chatapp
+    updateMessagesDelivered();
+
+
+    if (userId) {
+
+      //connecting to the socket.io server and will also join the personal room...
+      socket.current = io('http://localhost:3000', {
+        query: { userId }
+      });
+
+      //getting the list of online users from the socket.io server....
+      socket.current.on('update-online-status', (onlineUsersArray) => {
+        //storing the online user array in the state 
+        setOnlineUsers(onlineUsersArray);
+      })
+      console.log('socket connected')
+      //if user open a chat , then emitting events to join that chatroom , leave the personal room and listening for 
+      if (currentChatRoom) {
+
+        //joining room ,when click on a chat or user...
+        socket.current.emit('joinRoom', currentChatRoom?._id);
+
+        //leaving personal room when a chatroom is joined...
+        socket.current.emit('leavePersonalRoom', userId);
+
+        //listening to the event 'msgsRead' and changing the messages to read in realtime...
+        socket.current.on('msgsRead', () => {
+          setMessages((prevMessages) =>
+            prevMessages.map((msg) =>
+              msg = { ...msg, status: 'read' }
+            )
+          );
+        })
+      }
+      //dynamically displaying  user is typing and put the user into the typing user array state...
+      socket.current.on('displayTyping', (userId) => {
+        setTypingUsers((prev) => [...prev, userId]);
+      });
+
+      //dynamically removing the use from the typing user array state ....
+      socket.current.on('removeTyping', (userId) => {
+        setTypingUsers((prev) => prev.filter((id) => id !== userId));
+      });
+
+      //message delivered socket.io event listener which is updating the message status to delivered in the database
+      socket.current.on('msgDelivered', async (message) => {
+        try {
+          let response = await api.post(`/api/message/updateMsgToDelivered/${message._id}`, null, {
+            withCredentials: true
+          });
+
+          //updating to delivered in real time 
+          if (response?.data?.success) {
+            setMessages((prevMessages) =>
+              prevMessages.map((msg) => {
+                if (msg.status === 'sent') {
+
+                  return msg = {
+                    ...msg, status: 'delivered'
+                  }
+                } else {
+                  return msg
+                }
+              }
+              )
+            );
+          }
+          //updating to read in real time 
+          if (currentChatRoom && message.inChatRoom && response?.data?.success) {
+            response = await api.post(`/api/message/updateMsgToRead/${message._id}`, null, {
+              withCredentials: true
+            });
+            if (response?.data?.success) {
+              //updating messages to  read in realtime
+              setMessages((prevMessages) =>
+                prevMessages.map((msg) =>
+                  msg._id === message._id ? { ...msg, status: 'read' } : msg
+                )
+              );
+            }
+          }
+        } catch (error) {
+          console.error('Error updating message status:', error);
+        }
+      });
+
+
+
+      //receiver message socket.io event listener which is calling the catllback function
+      socket.current.on('receiveMessage', handleReceiveMessage);
+      return () => {
+        if (socket.current) {
+          socket.current.disconnect();
+          console.log("Socket disconnected");
+        }
+      };
+    }
+  }, [currentChatRoom]);
+
+
+
+>>>>>>> 1231b23454122c208aeaebd61de14996fa854556
   //This useEffect hook manages the socket's 'msgDelivered' event listener....
   // useEffect(() => {
   //   if (!socketRef.current) return;
@@ -285,6 +478,36 @@ function ChatSection({
   //   };
   // }, [currentChat]);
 
+<<<<<<< HEAD
+=======
+    return () => {
+      socket.current.off('msgDelivered');
+    };
+  }, [currentChat]);
+
+
+
+
+  //updating the status of all the  messages of a chat to read in the database...
+  useEffect(() => {
+    if (currentChat) {
+      const updateMessagesRead = async () => {
+        try {
+          const userId = currentChat?._id;
+          if (userId) {
+            await api.post(`/api/message/updateMsgsToRead/${currentChat._id}`, null, {
+              withCredentials: true,
+            });
+          }
+        } catch (err) {
+          console.log(err);
+        }
+      };
+
+      updateMessagesRead();
+    }
+  }, [messages]);
+>>>>>>> 1231b23454122c208aeaebd61de14996fa854556
 
 
   //fetching all the messages of a chatRoom  from the database.....
@@ -320,7 +543,6 @@ function ChatSection({
       }
     }
   }, [messages.length]);
-
 
   //seding the message to the database  to store as well as to the socket.io server for dynamically sending...
   const sendInputMessage = async (e) => {
@@ -369,6 +591,7 @@ function ChatSection({
           withCredentials: true
         });
         if (response.data.success) {
+<<<<<<< HEAD
 
 
           setMessages(prev =>
@@ -414,6 +637,24 @@ function ChatSection({
           }
 
           socketRef.current.emit('sendMessage', messageData);
+=======
+          console.log(response.data.message);
+          let messageData;
+          if (response.data?.message?.chatRoom?.isGroupChat) {
+               console.log('in group');
+            messageData = {
+              message: response.data.message
+            }
+          } else {
+            console.log('in a private chat');
+            messageData = {
+
+              message: response.data.message,
+              recipientId: currentChat._id
+            }
+          }
+          socket.current.emit('sendMessage', messageData);
+>>>>>>> 1231b23454122c208aeaebd61de14996fa854556
           setSendMessage('');
           setSelectedFiles([]);
         }
@@ -534,13 +775,19 @@ function ChatSection({
           {/* message section -->  */}
 
           <MessageSecCS
+<<<<<<< HEAD
             accessMessage={accessMessage}
+=======
+>>>>>>> 1231b23454122c208aeaebd61de14996fa854556
             messages={messages}
             selectedMsgs={selectedMsgs}
             inSelectMode={inSelectMode}
             toggleSelectMessage={toggleSelectMessage}
             lastMessageRef={lastMessageRef}
+<<<<<<< HEAD
             setIsAtBottom={setIsAtBottom}
+=======
+>>>>>>> 1231b23454122c208aeaebd61de14996fa854556
             isDelSelCardVisible={isDelSelCardVisible}
             handleDelSelCard={handleDelSelCard}
             handleSingleMsgDeletion={handleSingleMsgDeletion}

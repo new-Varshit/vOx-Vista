@@ -198,7 +198,11 @@ function NewChatSearch({ newChatCard }) {
 
 
                     {isGrpDetailForm &&
+<<<<<<< HEAD
                         <form className='flex flex-col gap-2 mt-[5%]' onSubmit={(e) =>handleSubmitGrpDetail(e)}>
+=======
+                        <form className='flex flex-col gap-2 mt-[5%]' onSubmit={(e) => handleSubmitGrpDetail(e)}>
+>>>>>>> 1231b23454122c208aeaebd61de14996fa854556
                             <div>
                                 <div onClick={handleCameraClick} className='flex justify-center items-center gap-5'>
                                     <div className='border-[1px] border-anotherPrimary  flex justify-center items-center  rounded-full w-[15%] aspect-square overflow-hidden'>
