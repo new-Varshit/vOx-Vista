@@ -42,11 +42,7 @@ app.use('/api/user', auth, userRoutes);
 app.use('/api/auth', authRoutes);
 app.use('/api/chatRoom', auth, chatRoomRoutes);
 app.use('/api/message', auth, messageRoutes);
-<<<<<<< HEAD
 app.use('/api/translate', auth, translateRoutes);
-=======
-app.use('/api/translate',auth,translateRoutes);
->>>>>>> 1231b23454122c208aeaebd61de14996fa854556
 
 io.on('connection', async (socket) => {
     const userId = socket.handshake.query.userId;
@@ -55,7 +51,6 @@ io.on('connection', async (socket) => {
     onlineUsers.add(userId);
     io.emit('update-online-status', Array.from(onlineUsers));
 
-<<<<<<< HEAD
     const result = await Message.updateMany(
         {
             sender: { $ne: userId },          // not sent by me
@@ -63,15 +58,6 @@ io.on('connection', async (socket) => {
         },
         {
             $addToSet: { deliveredTo: userId }
-=======
-
-
-    socket.on('sendMessage', (messageData) => {
-        io.to(messageData.message.chatRoom._id).emit('receiveMessage', messageData.message);
-
-        if (userId && messageData.recipientId) {
-            io.to(messageData.recipientId).emit('receiveMessage', messageData.message);
->>>>>>> 1231b23454122c208aeaebd61de14996fa854556
         }
     );
 
@@ -130,7 +116,6 @@ io.on('connection', async (socket) => {
         });
     });
 
-<<<<<<< HEAD
     socket.on("readMessages", async ({ chatRoomId, userId }) => {
         await Message.updateMany(
             {
@@ -142,10 +127,6 @@ io.on('connection', async (socket) => {
         );
         console.log('idhar ho tum');
         io.to(chatRoomId).emit("msgsRead", { chatRoomId, readerId: userId });
-=======
-    socket.on('delivered', (message) => {
-        io.to(message.chatRoom._id).emit('msgDelivered', message);
->>>>>>> 1231b23454122c208aeaebd61de14996fa854556
     });
 
 

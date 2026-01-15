@@ -8,12 +8,8 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import api from '../utils/Api';
 import { faSearch, faArrowRight, faPlus } from '@fortawesome/free-solid-svg-icons';
 import { jwtDecode } from 'jwt-decode';
-<<<<<<< HEAD
 import useChatSocket from '../hooks/useChatSocket';
 import userId from '../utils/UserId';
-=======
-
->>>>>>> 1231b23454122c208aeaebd61de14996fa854556
 
 
 function ChatListing({ newChatCard, setActiveChatRooms, activeChatRooms }) {
@@ -34,29 +30,6 @@ function ChatListing({ newChatCard, setActiveChatRooms, activeChatRooms }) {
 
     const dispatch = useDispatch();
 
-<<<<<<< HEAD
-
-=======
-    useEffect(() => {
-        if (!searchChatRoom.trim()) {
-            return;
-        }
-        const searchActiveUser = async () => {
-            try {
-                const response = await api.get('/api/chatRoom/searchActiveChatRoom', {
-                    params: { searchChatRoom },
-                    withCredentials: true
-                })
-                if (response.data.success) {
-                    setActiveChatRooms(response.data.chatRooms);
-                }
-            } catch (err) {
-                console.log(err);
-            }
-        }
-        searchActiveUser();
-    }, [searchChatRoom])
->>>>>>> 1231b23454122c208aeaebd61de14996fa854556
 
 
     const handleChatClick = async (newChat) => {
@@ -90,10 +63,10 @@ function ChatListing({ newChatCard, setActiveChatRooms, activeChatRooms }) {
         dispatch(setCurrentChatRoom(groupChat));
     }
 
-    const handleGroupChatClick = async (groupChat) => {
-        dispatch(setCurrentChat(null));
-        dispatch(setCurrentChatRoom(groupChat));
-    }
+    // const handleGroupChatClick = async (groupChat) => {
+    //     dispatch(setCurrentChat(null));
+    //     dispatch(setCurrentChatRoom(groupChat));
+    // }
 
     const handleChatMenuToggle = (chatRoomId, e) => {
         e.preventDefault();
@@ -163,7 +136,6 @@ function ChatListing({ newChatCard, setActiveChatRooms, activeChatRooms }) {
         } catch (err) {
             console.log(err);
         }
-<<<<<<< HEAD
 
     }
               
@@ -171,12 +143,6 @@ function ChatListing({ newChatCard, setActiveChatRooms, activeChatRooms }) {
     useEffect(()=>{
           fetchChatRooms();
     },[searchChatRoom])
-=======
-        fetchActiveChatRooms();
-    }, [currentChatRoom]);
-
-
->>>>>>> 1231b23454122c208aeaebd61de14996fa854556
 
     useEffect(() => {
         document.addEventListener('click', handleClickOutside);
@@ -225,7 +191,6 @@ function ChatListing({ newChatCard, setActiveChatRooms, activeChatRooms }) {
                         :
                         activeChatRooms.map((chatRoom) => (
 
-<<<<<<< HEAD
                             <div className='flex items-center gap-4 p-2 cursor-pointer hover:bg-gray-100 rounded-xl relative' key={chatRoom._id} ref={menuRef} onContextMenu={(e) => handleChatMenuToggle(chatRoom._id, e)} onClick={chatRoom?.isGroupChat ? () => handleGroupChatClick(chatRoom) : () => handleChatClick(chatRoom.receiver)}>
 
                                 {chatRoom?.isGroupChat
@@ -233,30 +198,15 @@ function ChatListing({ newChatCard, setActiveChatRooms, activeChatRooms }) {
                                     <img className='w-12 h-12 object-cover rounded-full border border-gray-300' src={chatRoom?.groupIcon} alt="profile picture" />
                                     :
                                     <img className='w-12 h-12 object-cover rounded-full border border-gray-300' src={chatRoom?.receiver?.profile?.profilePic} alt="profile picture" />
-=======
-                            <div className='flex justify-start gap-3 relative overflow-visible' key={chatRoom._id} ref={menuRef} onContextMenu={(e) => handleChatMenuToggle(chatRoom._id, e)} onClick={chatRoom?.isGroupChat ? () => handleGroupChatClick(chatRoom) : () => handleChatClick(chatRoom.receiver)}>
-
-                                {chatRoom?.isGroupChat
-                                    ?
-                                    <img className='rounded-full w-[15%]' src={chatRoom?.groupIcon} alt="profile picture" />
-                                    :
-                                    <img className='rounded-full w-[15%]' src={chatRoom?.receiver?.profile?.profilePic} alt="profile picture" />
->>>>>>> 1231b23454122c208aeaebd61de14996fa854556
                                 }
 
                                 <div className='flex flex-col w-5/6 justify-center'>
                                     <div className='flex justify-between w-full mb-0'>
                                         {chatRoom?.isGroupChat
                                             ?
-<<<<<<< HEAD
                                             <p className='text-anotherPrimary text-base font-medium truncate'>{chatRoom?.name}</p>
                                             :
                                             <p className='text-anotherPrimary text-base font-medium truncate'>{chatRoom?.receiver?.userName}</p>
-=======
-                                            <p className='text-anotherPrimary font-semibold text-sm'>{chatRoom?.name}</p>
-                                            :
-                                            <p className='text-anotherPrimary font-semibold text-sm'>{chatRoom?.receiver?.userName}</p>
->>>>>>> 1231b23454122c208aeaebd61de14996fa854556
                                         }
                                         <p className='text-xs text-font'>{chatRoom?.lastMessage?.createdAt
                                             ? format(new Date(chatRoom.lastMessage.createdAt), 'HH:mm')
@@ -271,13 +221,6 @@ function ChatListing({ newChatCard, setActiveChatRooms, activeChatRooms }) {
                                             </p>
                                         )}
 
-<<<<<<< HEAD
-=======
-                                        {!chatRoom?.isGroupChat &&
-                                            <p className={`${chatRoom?.unreadMsgs === 0 || currentChatRoom?._id === chatRoom._id ? 'bg-gray-200 text-gray-200' : 'bg-anotherPrimary text-white'} rounded-full text-xs font-semibold px-1 text-center flex items-center`}>{chatRoom?.unreadMsgs}</p>
-
-                                        }
->>>>>>> 1231b23454122c208aeaebd61de14996fa854556
                                     </div>
                                 </div>
                                 {

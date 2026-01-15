@@ -5,10 +5,8 @@ import axios from 'axios';
 import { useState, useEffect } from 'react';
 import { useDispatch,useSelector } from 'react-redux';
 import { setTargetLanguage } from '../store/lngSlice';
-<<<<<<< HEAD
 import api from '../utils/Api';
-=======
->>>>>>> 1231b23454122c208aeaebd61de14996fa854556
+
 
 
 
@@ -29,7 +27,7 @@ function Translation() {
     useEffect(() => {
         const fetchLanguages = async () => {
             try {
-<<<<<<< HEAD
+
                 const response = await api.get('/api/translate/getTranslateLangs', {
                     withCredentials:true
                 });
@@ -38,16 +36,6 @@ function Translation() {
                     setLanguages(Object.entries(langData));
                     console.log(langData);
                 }
-=======
-                const response = await axios.get('https://api.cognitive.microsofttranslator.com/languages?api-version=3.0', {
-                    headers: {
-                        'Ocp-Apim-Subscription-Key': '56IpbygM7vdSeYPK2Rm7KtQ6XQGRrgL0TXMB4FC903FwgyCQ1FWKJQQJ99AKACGhslBXJ3w3AAAbACOGwRVX',
-                    },
-                });
-                const langData = response.data.translation;
-                setLanguages(Object.entries(langData));
-                console.log(langData);
->>>>>>> 1231b23454122c208aeaebd61de14996fa854556
             } catch (error) {
                 console.error('Error fetching languages:', error);
             }

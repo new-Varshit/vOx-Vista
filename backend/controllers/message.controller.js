@@ -9,11 +9,7 @@ export const sendMessage = async (req, res) => {
   const { content, chatRoomId } = req.body;
   const senderId = req.id.userId;
 
-<<<<<<< HEAD
   //  console.log('printing : ',content,chatRoomId);
-=======
-     console.log('printing : ',content,chatRoomId);
->>>>>>> 1231b23454122c208aeaebd61de14996fa854556
 
   let attachments = [];
 
@@ -75,7 +71,6 @@ export const sendMessage = async (req, res) => {
         deletedFor: []
       }
     });
-<<<<<<< HEAD
 
     if(isFirstMessage){
       const receiver = chatRoom.members.find(
@@ -92,10 +87,6 @@ export const sendMessage = async (req, res) => {
         chatRoom
       });
     }
-=======
-       console.log('message: ' , message);
-    const populatedMessage = (await message.populate(['sender','chatRoom']));
->>>>>>> 1231b23454122c208aeaebd61de14996fa854556
 
     //  console.log('message: ' , message);
     const populatedMessage = (await message.populate(['sender', 'chatRoom']));
