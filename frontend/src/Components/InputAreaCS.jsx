@@ -5,12 +5,8 @@ import { faFaceSmile, faPaperPlane, } from '@fortawesome/free-regular-svg-icons'
 import { faPaperclip,  } from '@fortawesome/free-solid-svg-icons';
 import Picker from '@emoji-mart/react';
 import GetFileIcon from '../utils/GetFileIcon';
-<<<<<<< HEAD
 import { useSelector } from 'react-redux';
 import { current } from '@reduxjs/toolkit';
-=======
-
->>>>>>> 1231b23454122c208aeaebd61de14996fa854556
 
 function InputAreaCS({
     setSelectedFiles,
@@ -21,12 +17,9 @@ function InputAreaCS({
     handleTyping,
 }) {
 
-<<<<<<< HEAD
 
       const currentChatRoom = useSelector((state) => state.chatRoom.currentChatRoom);
 
-=======
->>>>>>> 1231b23454122c208aeaebd61de14996fa854556
     const [showEmojiPicker, setShowEmojiPicker] = useState(false);
 
     const fileInputRef = useRef(null);
@@ -146,11 +139,7 @@ function InputAreaCS({
                         </div>)}
                 </div>
 
-<<<<<<< HEAD
                 <input  disabled={currentChatRoom?.isAllowed === false}
-=======
-                <input
->>>>>>> 1231b23454122c208aeaebd61de14996fa854556
                     className='w-full py-4 px-2 focus:outline-none bg-gray-300'
                     type='text'
                     placeholder={selectedFiles.length > 0 ? 'Add caption here (optional)' : 'Type a message...'}

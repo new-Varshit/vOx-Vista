@@ -108,9 +108,9 @@ function ChatSection({
 
 
 
-  const token = localStorage.getItem('token');
-  const decodedToken = jwtDecode(token);
-  const userId = decodedToken.userId;
+  // const token = localStorage.getItem('token');
+  // const decodedToken = jwtDecode(token);
+  // const userId = decodedToken.userId;
   //all the states using
   const [isTyping, setIsTyping] = useState(false);
   const [typingUsers, setTypingUsers] = useState([]);
@@ -280,13 +280,6 @@ function ChatSection({
 
 
 
-  //This useEffect hook manages the socket's 'msgDelivered' event listener....
-  // useEffect(() => {
-  //   if (!socketRef.current) return;
-  //   return () => {
-  //     socketRef.current.off('msgDelivered');
-  //   };
-  // }, [currentChat]);
 
 
 
