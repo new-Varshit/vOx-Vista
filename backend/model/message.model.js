@@ -15,13 +15,10 @@ const messageSchema = new mongoose.Schema({
     ref: 'ChatRoom',
     required: true
   },
-<<<<<<< HEAD
   isSystem: {
     type: Boolean,
     default: false
   },
-=======
->>>>>>> 1231b23454122c208aeaebd61de14996fa854556
   deletedFor: [
     {
       type: mongoose.Schema.Types.ObjectId,
@@ -33,7 +30,6 @@ const messageSchema = new mongoose.Schema({
     enum: ['sent', 'delivered', 'read'],
     default: 'sent'
   },
-<<<<<<< HEAD
   deliveredTo: [
     {
       type: mongoose.Schema.Types.ObjectId,
@@ -46,8 +42,6 @@ const messageSchema = new mongoose.Schema({
       ref: 'User'
     }
   ],
-=======
->>>>>>> 1231b23454122c208aeaebd61de14996fa854556
   attachments: [
     {
       public_id: {

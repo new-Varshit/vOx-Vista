@@ -7,7 +7,6 @@ export const updateProfile = async (req, res) => {
   const { bio, userName, email } = req.body;
   let profilePic = 'https://res.cloudinary.com/meovercloud/image/upload/v1727717288/v0x-Vista/xxjnxeld58gfmbjm8vxi.jpg';
 
-<<<<<<< HEAD
    try {
   if (req.file) {
     const uriData = getDataUri(req.file);
@@ -33,15 +32,6 @@ export const updateProfile = async (req, res) => {
         message: 'user doesn\'t  exist',
         success: false
       })
-=======
-            console.log(req.file);
-    if(req.file){
-        const uriData = getDataUri(req.file);
-        const cloudResponse = await cloudinary.uploader.upload(uriData.content, {
-            folder: 'vOx-Vista', 
-        });
-                profilePic = cloudResponse.secure_url;
->>>>>>> 1231b23454122c208aeaebd61de14996fa854556
     }
 
     return res.status(200).json({

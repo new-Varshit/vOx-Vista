@@ -2,13 +2,10 @@ import { ChatRoom } from "../model/chatRoom.model.js";
 import { Message } from "../model/message.model.js";
 import cloudinary from '../utils/cloudinary.js';
 import getDataUri from '../utils/dataUri.js';
-<<<<<<< HEAD
 import { io } from "../index.js";
 
 const SYSTEM_USER_ID = "000000000000000000000000"; // any valid ObjectId-like string
 
-=======
->>>>>>> 1231b23454122c208aeaebd61de14996fa854556
 
 export const createOrGetChatRoom = async (req, res) => {
     const { userId } = req.id;
@@ -42,22 +39,12 @@ export const createOrGetChatRoom = async (req, res) => {
 }
 
 export const createGroupChat = async (req, res) => {
-<<<<<<< HEAD
 
     const { name } = req.body;
     const members = JSON.parse(req.body.members);
     const groupIcon = req.file;
     const userId = req.id?.userId;
 
-=======
-    console.log('hello creating group chat')
-    const { name } = req.body;
-      const members = JSON.parse(req.body.members);
-    const groupIcon = req.file;
-    const userId = req.id?.userId;
-    console.log(members,name);
-    console.log(req.file);
->>>>>>> 1231b23454122c208aeaebd61de14996fa854556
 
     if (!members || !name || !groupIcon) {
         return res.status(400).json({
@@ -65,11 +52,6 @@ export const createGroupChat = async (req, res) => {
             message: 'Invalid input data'
         });
     }
-<<<<<<< HEAD
-
-=======
-   
->>>>>>> 1231b23454122c208aeaebd61de14996fa854556
 
     const uriData = getDataUri(req.file); // Adjusted to handle single file input
 
@@ -87,20 +69,13 @@ export const createGroupChat = async (req, res) => {
     }
 
     members.push(userId);
-<<<<<<< HEAD
     let groupChat;
     try {
         groupChat = await ChatRoom.create({
-=======
-         let groupChat;
-    try {
-         groupChat = await ChatRoom.create({
->>>>>>> 1231b23454122c208aeaebd61de14996fa854556
             name: name,
             isGroupChat: true,
             admin: userId,
             members: members,
-<<<<<<< HEAD
             groupIcon: cloudResponse.secure_url,
             hasMessage: true
         });
@@ -114,14 +89,6 @@ export const createGroupChat = async (req, res) => {
         })
 
 
-=======
-            groupIcon: cloudResponse.secure_url
-        });
-
-          groupChat = await groupChat.populate('members');
-
-        console.log(groupChat);
->>>>>>> 1231b23454122c208aeaebd61de14996fa854556
 
         return res.status(200).json({
             success: true,
@@ -152,19 +119,11 @@ export const getAllChatRooms = async (req, res) => {
             .populate('lastMessage');
 
         const chatRoomsPromises = chats.map(async chat => {
-<<<<<<< HEAD
             let lastMessage;
             const unreadMsgs = await getNumberOfUnreadMsgs(chat._id, userId);
 
             if (!chat.isGroupChat) {
                 const receiverProfile = chat.members.find(member => String(member._id) !== String(userId));
-=======
-                       let lastMessage;
-            if(!chat.isGroupChat){
-                const receiverProfile = chat.members.find(member => String(member._id) !== String(userId));
-
-                const unreadMsgs = await getNumberOfUnreadMsgs(chat._id, receiverProfile._id);
->>>>>>> 1231b23454122c208aeaebd61de14996fa854556
                 lastMessage = await Message.findOne({
                     chatRoom: chat._id,
                     deletedFor: { $ne: userId }
@@ -175,20 +134,14 @@ export const getAllChatRooms = async (req, res) => {
                     unreadMsgs,
                     lastMessage
                 }
-<<<<<<< HEAD
             } else {
                 lastMessage = await Message.findOne({
-=======
-            }else{
-                 lastMessage = await Message.findOne({
->>>>>>> 1231b23454122c208aeaebd61de14996fa854556
                     chatRoom: chat._id,
                     deletedFor: { $ne: userId }
                 }).sort({ createdAt: -1 });
 
                 return {
                     ...chat.toObject(),
-<<<<<<< HEAD
                     lastMessage,
                     unreadMsgs
                 }
@@ -196,18 +149,6 @@ export const getAllChatRooms = async (req, res) => {
 
         });
 
-=======
-                    lastMessage
-                }
-            }
-
-
-           
-        });
-
-
-
->>>>>>> 1231b23454122c208aeaebd61de14996fa854556
         const chatRooms = await Promise.all(chatRoomsPromises);
         chatRooms.sort(
             (a, b) =>
@@ -276,26 +217,14 @@ export const dltChatRoom = async (req, res) => {
 }
 
 export const searchActiveChatRoom = async (req, res) => {
-<<<<<<< HEAD
 
     const userId = req.id.userId;
     const { searchChatRoom } = req.query;
-=======
-    const userId = req.id.userId;
-    const { searchChatRoom } = req.query;
-    // if(!searchChatRoom){
-    //     getAllChatRooms();
-    // }
->>>>>>> 1231b23454122c208aeaebd61de14996fa854556
     try {
         let chatRooms = await ChatRoom.find({
             members: { $in: [userId] }, hasMessage: true, deletedFor: { $ne: userId }
         }).populate('members').populate('lastMessage');
 
-<<<<<<< HEAD
-=======
-        console.log('before promises', chatRooms)
->>>>>>> 1231b23454122c208aeaebd61de14996fa854556
 
         const chatRoomsPromises = chatRooms.map(async chat => {
 
@@ -319,10 +248,6 @@ export const searchActiveChatRoom = async (req, res) => {
 
         chatRooms = (await Promise.all(chatRoomsPromises)).filter(chatRoom => chatRoom !== null);
 
-<<<<<<< HEAD
-=======
-        console.log('after promises', chatRooms);
->>>>>>> 1231b23454122c208aeaebd61de14996fa854556
 
         return res.status(200).json({
             success: true,
