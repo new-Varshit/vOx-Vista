@@ -31,6 +31,10 @@ const chatRoomSchema = new mongoose.Schema({
         type: Boolean,
         default: false
     },
+    description:{
+        type:String,
+        default:"",
+    },
     admin: {
         type: mongoose.Schema.Types.ObjectId,
         ref: "User",

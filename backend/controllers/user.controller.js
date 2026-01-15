@@ -7,8 +7,6 @@ export const updateProfile = async (req, res) => {
   const { bio, userName, email } = req.body;
   let profilePic = 'https://res.cloudinary.com/meovercloud/image/upload/v1727717288/v0x-Vista/xxjnxeld58gfmbjm8vxi.jpg';
 
-  console.log(req.file);
-   console.log(process.env.CLOUDINARY_API_SECRET,process.env.CLOUDINARY_API_KEY,process.env.CLOUDINARY_CLOUD_NAME);
    try {
   if (req.file) {
     const uriData = getDataUri(req.file);

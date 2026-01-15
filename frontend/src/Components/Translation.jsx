@@ -5,6 +5,7 @@ import axios from 'axios';
 import { useState, useEffect } from 'react';
 import { useDispatch,useSelector } from 'react-redux';
 import { setTargetLanguage } from '../store/lngSlice';
+import api from '../utils/Api';
 
 
 
@@ -25,14 +26,14 @@ function Translation() {
     useEffect(() => {
         const fetchLanguages = async () => {
             try {
-                const response = await axios.get(import.meta.env.VITE_TRANSLATOR_URL, {
-                    headers: {
-                        'Ocp-Apim-Subscription-Key': import.meta.env.VITE_SUBSCRIPTION_KEY,
-                    },
+                const response = await api.get('/api/translate/getTranslateLangs', {
+                    withCredentials:true
                 });
-                const langData = response.data.translation;
-                setLanguages(Object.entries(langData));
-                console.log(langData);
+                if(response.data.success){
+                    const langData = response.data.langData;
+                    setLanguages(Object.entries(langData));
+                    console.log(langData);
+                }
             } catch (error) {
                 console.error('Error fetching languages:', error);
             }

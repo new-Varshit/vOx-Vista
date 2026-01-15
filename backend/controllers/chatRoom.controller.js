@@ -2,6 +2,10 @@ import { ChatRoom } from "../model/chatRoom.model.js";
 import { Message } from "../model/message.model.js";
 import cloudinary from '../utils/cloudinary.js';
 import getDataUri from '../utils/dataUri.js';
+import { io } from "../index.js";
+
+const SYSTEM_USER_ID = "000000000000000000000000"; // any valid ObjectId-like string
+
 
 export const createOrGetChatRoom = async (req, res) => {
     const { userId } = req.id;
@@ -35,13 +39,12 @@ export const createOrGetChatRoom = async (req, res) => {
 }
 
 export const createGroupChat = async (req, res) => {
-    console.log('hello creating group chat')
+
     const { name } = req.body;
     const members = JSON.parse(req.body.members);
     const groupIcon = req.file;
     const userId = req.id?.userId;
-    console.log(members, name);
-    console.log(req.file);
+
 
     if (!members || !name || !groupIcon) {
         return res.status(400).json({
@@ -74,12 +77,19 @@ export const createGroupChat = async (req, res) => {
             isGroupChat: true,
             admin: userId,
             members: members,
-            groupIcon: cloudResponse.secure_url
+            groupIcon: cloudResponse.secure_url,
+            hasMessage: true
         });
 
         groupChat = await groupChat.populate('members');
 
-        console.log(groupChat);
+        groupChat.members.forEach(mem => {
+            io.to(mem._id.toString()).emit('newGrpChatCreated', {
+                groupChatRoom: groupChat
+            })
+        })
+
+
 
         return res.status(200).json({
             success: true,
@@ -109,16 +119,12 @@ export const getAllChatRooms = async (req, res) => {
             .populate('members')
             .populate('lastMessage');
 
-        
-            // console.log("all chats",chats);
-
-
         const chatRoomsPromises = chats.map(async chat => {
             let lastMessage;
+            const unreadMsgs = await getNumberOfUnreadMsgs(chat._id, userId);
+
             if (!chat.isGroupChat) {
                 const receiverProfile = chat.members.find(member => String(member._id) !== String(userId));
-
-                const unreadMsgs = await getNumberOfUnreadMsgs(chat._id, receiverProfile._id);
                 lastMessage = await Message.findOne({
                     chatRoom: chat._id,
                     deletedFor: { $ne: userId }
@@ -134,17 +140,23 @@ export const getAllChatRooms = async (req, res) => {
                     chatRoom: chat._id,
                     deletedFor: { $ne: userId }
                 }).sort({ createdAt: -1 });
-       
+
                 return {
                     ...chat.toObject(),
-                    lastMessage
+                    lastMessage,
+                    unreadMsgs
                 }
             }
 
         });
 
         const chatRooms = await Promise.all(chatRoomsPromises);
-                    // console.log("again ",chatRooms);
+        chatRooms.sort(
+            (a, b) =>
+                new Date(b.lastMessage?.createdAt || 0) -
+                new Date(a.lastMessage?.createdAt || 0)
+        );
+
         return res.status(200).json({
             success: true,
             chatRooms
@@ -158,20 +170,25 @@ export const getAllChatRooms = async (req, res) => {
     }
 }
 
-const getNumberOfUnreadMsgs = async (chatRoomId, receiverId) => {
+
+
+
+const getNumberOfUnreadMsgs = async (chatRoomId, userId) => {
+
     try {
         const unreadMsgsCount = await Message.countDocuments({
             chatRoom: chatRoomId,
-            sender: receiverId,
-            status: { $ne: 'read' }
+            sender: { $ne: userId },
+            readBy: { $ne: userId }
         });
-        // console.log('Unread messages:', unreadMsgsCount);
         return unreadMsgsCount;
     } catch (err) {
         console.error('Error counting unread messages:', err);
         throw err;
     }
 }
+
+
 
 export const dltChatRoom = async (req, res) => {
     const userId = req.id.userId;
@@ -201,18 +218,14 @@ export const dltChatRoom = async (req, res) => {
 }
 
 export const searchActiveChatRoom = async (req, res) => {
-    console.log('yo');
+
     const userId = req.id.userId;
     const { searchChatRoom } = req.query;
-    // if(!searchChatRoom){
-    //     getAllChatRooms();
-    // }
     try {
         let chatRooms = await ChatRoom.find({
-            members: { $in: [userId] }, hasMessage : true,deletedFor: { $ne: userId }
+            members: { $in: [userId] }, hasMessage: true, deletedFor: { $ne: userId }
         }).populate('members').populate('lastMessage');
 
-        // console.log('before promises', chatRooms)
 
         const chatRoomsPromises = chatRooms.map(async chat => {
 
@@ -220,7 +233,7 @@ export const searchActiveChatRoom = async (req, res) => {
             if (!receiverProfile) {
                 return null;
             }
-            const unreadMsgs = await getNumberOfUnreadMsgs(chat._id, receiverProfile?._id);
+            const unreadMsgs = await getNumberOfUnreadMsgs(chat._id, userId);
             let lastMessage = await Message.findOne({
                 chatRoom: chat._id,
                 deletedFor: { $ne: userId }
@@ -236,7 +249,6 @@ export const searchActiveChatRoom = async (req, res) => {
 
         chatRooms = (await Promise.all(chatRoomsPromises)).filter(chatRoom => chatRoom !== null);
 
-        // console.log('after promises', chatRooms);
 
         return res.status(200).json({
             success: true,
@@ -247,3 +259,377 @@ export const searchActiveChatRoom = async (req, res) => {
         console.log(err);
     }
 }
+
+
+
+
+// GroupChat controllers 
+export const addMember = async (req, res) => {
+    const { chatRoomId, members } = req.body;
+
+    try {
+        await ChatRoom.findByIdAndUpdate(chatRoomId, {
+            $addToSet: { members: { $each: members } }
+        });
+
+        const updatedGroup = await ChatRoom.findById(chatRoomId).populate("members").populate("lastMessage");
+
+        const adminUser = updatedGroup.members.find(
+            mem => mem._id.toString() === updatedGroup.admin.toString()
+        );
+        const adderName = adminUser?.userName || "Someone";
+
+        // 1️⃣ Notify ONLY newly added members
+        members.forEach(memId => {
+            io.to(memId.toString()).emit("addedToGrp", {
+                newGrpChat: updatedGroup
+            });
+        });
+
+
+        // 2️⃣ Notify existing members about update
+        updatedGroup.members.forEach(mem => {
+            if (!members.includes(mem._id.toString())) {
+
+                io.to(mem._id.toString()).emit("grpMembersUpdated", {
+                    chatRoomId,
+                    members: updatedGroup.members
+                });
+            }
+        });
+
+        console.log('updatedGroup members', updatedGroup.members);
+
+        // 3️⃣ Create and broadcast system messages
+        for (const memId of members) {
+            const newUser = updatedGroup.members.find(
+                m => m._id.toString() === memId.toString()
+            );
+
+            let systemMsg = await Message.create({
+                chatRoom: chatRoomId,
+                sender: SYSTEM_USER_ID,
+                content: `${adderName} added ${newUser.userName} to the group`,
+                isSystem: true
+            });
+
+            systemMsg = await systemMsg.populate([
+                { path: 'sender' },
+                { path: 'chatRoom' }
+            ]);
+
+
+            for (const upMemId of updatedGroup.members) {
+                console.log('upMemId', upMemId);
+                io.to(upMemId._id.toString()).emit("receiveMessage", systemMsg);
+
+                io.to(upMemId._id.toString()).emit("incrementUnread", { chatRoomId, message: systemMsg });
+            }
+        }
+
+        return res.status(200).json({
+            success: true,
+            message: "Member added successfully"
+        });
+    } catch (err) {
+        console.log(err);
+        return res.status(500).json({ success: false });
+    }
+};
+
+
+
+
+
+
+
+export const editGroupInfo = async (req, res) => {
+    const { name, description, chatRoomId } = req.body;
+
+    try {
+        const oldGrpInfo = await ChatRoom.findById(chatRoomId);
+        if (!oldGrpInfo) {
+            return res.status(404).json({ success: false, message: "Group not found" });
+        }
+
+        let updateData = { name, description };
+        let systemMessages = [];
+
+        if (name && name !== oldGrpInfo.name) {
+            systemMessages.push(`Group name was changed to "${name}"`);
+        }
+
+        if (description && description !== oldGrpInfo.description) {
+            systemMessages.push(`Group description was updated`);
+        }
+
+        if (req.file) {
+            const uriData = getDataUri(req.file);
+            const cloudResponse = await cloudinary.uploader.upload(uriData.content, {
+                folder: "vOx-Vista",
+            });
+
+            updateData.groupIcon = cloudResponse.secure_url;
+            systemMessages.push(`Group icon was changed`);
+        }
+
+        await ChatRoom.findByIdAndUpdate(chatRoomId, updateData);
+
+        const updatedGroup = await ChatRoom.findById(chatRoomId).populate('members').populate('lastMessage');
+
+        updatedGroup.members.forEach(mem => {
+            io.to(mem._id.toString()).emit('grpInfoEdited', {
+                updatedGroup
+            });
+        })
+
+        for (let text of systemMessages) {
+            let sysMsg = await Message.create({
+                chatRoom: chatRoomId,
+                sender: SYSTEM_USER_ID,
+                isSystem: true,
+                content: text,
+            });
+
+            sysMsg = await sysMsg.populate([
+                { path: 'sender' },
+                { path: 'chatRoom' }
+            ]);
+
+            updatedGroup.members.forEach(mem => {
+                io.to(mem._id.toString()).emit('receiveMessage', sysMsg);
+                io.to(mem._id.toString()).emit('incrementUnread', {
+                    message: sysMsg,
+                    chatRoomId
+                })
+            })
+
+
+        }
+
+        return res.status(200).json({
+            success: true,
+            message: "Group Info updated successfully"
+        })
+
+    } catch (err) {
+        console.log(err);
+        return res.status(500).json({ success: false });
+    }
+}
+
+
+export const removeMember = async (req, res) => {
+    const { member, chatRoomId } = req.body;
+
+    try {
+        // Remove the member from group
+        await ChatRoom.findByIdAndUpdate(chatRoomId, {
+            $pull: { members: member._id }
+        });
+
+        // Fetch updated group with members + admin
+        const updatedGroup = await ChatRoom.findById(chatRoomId)
+            .populate("members")
+            .populate("admin");
+
+        const sysMsg = await Message.create({
+            sender: SYSTEM_USER_ID,
+            chatRoom: chatRoomId,
+            isSystem: true,
+            content: `${updatedGroup.admin.userName} removed ${member.userName} from the group.`
+        });
+
+        // Send updates to remaining members
+        updatedGroup.members.forEach(mem => {
+            io.to(mem._id.toString()).emit("memberRemoved", {
+                members: updatedGroup.members,
+                chatRoomId
+            });
+
+            io.to(mem._id.toString()).emit("receiveMessage", sysMsg);
+
+            io.to(mem._id.toString()).emit("incrementUnread", {
+                message: sysMsg,
+                chatRoomId
+            });
+        });
+
+        // Notify the removed user separately
+        io.to(member._id.toString()).emit("removedFromGrp", {
+            chatRoomId,
+            message: "You have been removed from this group."
+        });
+
+        return res.status(200).json({
+            success: true,
+            message: "Member removed successfully"
+        });
+
+    } catch (err) {
+        console.log(err);
+        return res.status(500).json({ success: false });
+    }
+};
+
+export const exitGrp = async (req, res) => {
+    const { chatRoomId } = req.body;
+    const user = req.id.userId;
+
+    try {
+        const chatRoom = await ChatRoom.findById(chatRoomId).populate("members");
+        if (!chatRoom) {
+            return res.status(404).json({ success: false, message: "Group not found" });
+        }
+
+        const exitedUser = chatRoom.members.find(
+            mem => mem._id.toString() === user
+        );
+
+        if (!exitedUser) {
+            return res.status(400).json({
+                success: false,
+                message: "User is not part of this group",
+            });
+        }
+
+        // Remove user
+        await ChatRoom.findByIdAndUpdate(chatRoomId, {
+            $pull: { members: user },
+        });
+
+        const updatedGroup = await ChatRoom.findById(chatRoomId).populate("members");
+
+
+
+
+
+
+        let adminChanged = false;
+        let newAdmin = null;
+
+        if (chatRoom.admin.toString() === user && updatedGroup.members.length > 0) {
+            newAdmin = updatedGroup.members[0];
+
+            await ChatRoom.findByIdAndUpdate(chatRoomId, {
+                admin: newAdmin._id,
+            });
+
+            // Keep in-memory object in sync
+            updatedGroup.admin = newAdmin._id;
+            adminChanged = true;
+        }
+
+
+
+
+        io.to(user).emit("exitGrp", {
+            chatRoomId,
+            message: `You left ${chatRoom?.name}`,
+        });
+
+        // If no members left → delete group
+        if (!updatedGroup || updatedGroup.members.length === 0) {
+            await ChatRoom.findByIdAndDelete(chatRoomId);
+            return res.status(200).json({
+                success: true,
+                message: "Group deleted because it had no members",
+            });
+        }
+
+        // 1️⃣ Exit system message
+        const exitMsg = await Message.create({
+            chatRoom: chatRoomId,
+            sender: SYSTEM_USER_ID,
+            isSystem: true,
+            content: `${exitedUser.userName} left the group`,
+        });
+
+        updatedGroup.members.forEach(mem => {
+
+            io.to(mem._id.toString()).emit("memberExitGrp", {
+                chatRoomId,
+                members: updatedGroup?.members,
+                admin: updatedGroup?.admin,
+            });
+
+            io.to(mem._id.toString()).emit("receiveMessage", exitMsg);
+
+            io.to(mem._id.toString()).emit("incrementUnread", {
+                message: exitMsg,
+                chatRoomId,
+            });
+
+        });
+
+
+
+        // 2️⃣ Admin promotion (AFTER exit message)
+        if (adminChanged) {
+
+            const adminMsg = await Message.create({
+                chatRoom: chatRoomId,
+                sender: SYSTEM_USER_ID,
+                isSystem: true,
+                content: `${newAdmin.userName} is now the group admin`,
+            });
+
+            updatedGroup.members.forEach(mem => {
+                io.to(mem._id.toString()).emit("receiveMessage", adminMsg);
+                io.to(mem._id.toString()).emit("incrementUnread", {
+                    message: adminMsg,
+                    chatRoomId,
+                });
+            });
+        }
+
+        return res.status(200).json({
+            success: true,
+            message: "User exited successfully",
+        });
+    } catch (err) {
+        console.log(err);
+        return res.status(500).json({ success: false, message: "Server error" });
+    }
+};
+
+
+export const deleteGrp = async (req, res) => {
+    const { chatRoomId } = req.body;
+     
+            
+    try {
+        const chatRoom = await ChatRoom.findById(chatRoomId)
+            .populate("members")
+            .populate("admin");
+
+        if (!chatRoom) {
+            return res.status(404).json({
+                success: false,
+                message: "Group not found",
+            });
+        }
+
+        await Message.deleteMany({ chatRoom: chatRoomId });
+        await ChatRoom.findByIdAndDelete(chatRoomId);
+         
+         
+        chatRoom.members.forEach(mem => {
+            io.to(mem._id.toString()).emit("grpDeleted", {
+                chatRoomId,
+                message: `This group "${chatRoom.name}" was deleted by ${chatRoom?.admin?.userName}`,
+            });
+        });
+
+        return res.status(200).json({
+            success: true,
+            message: "Group deleted successfully",
+        });
+    } catch (err) {
+        console.log(err);
+        return res.status(500).json({
+            success: false,
+            message: "Server error",
+        });
+    }
+};

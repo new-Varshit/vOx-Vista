@@ -44,7 +44,14 @@ function HeaderSecCS({
 
                         <div className='flex items-center  gap-4'>
                             <div
-                                className="w-12 h-12 rounded-full overflow-hidden flex items-center justify-center cursor-pointer border border-gray-300 hover:opacity-90 transition"
+                                className={`
+  w-12 h-12 rounded-full overflow-hidden flex items-center justify-center
+  border border-gray-300 transition
+  ${currentChatRoom?.isAllowed === false
+                                        ? "pointer-events-none opacity-50 select-none cursor-not-allowed"
+                                        : "cursor-pointer hover:opacity-90"}
+`}
+
                                 onClick={sideProfileCard}
                             >
                                 <img
@@ -58,7 +65,7 @@ function HeaderSecCS({
                                 <p className='font-semibold  text-sm'>{currentChatRoom.name}</p>
                                 <div className='flex flex-row'>
                                     {currentChatRoom?.members.map((member) => (
-                                        <p className='text-xs'>{member.userName + ", "}</p>
+                                        <p key={member._id} className='text-xs'>{member.userName + ", "}</p>
                                     ))}
                                 </div>
                                 {currentChatRoom.members.some(member => typingUsers.includes(member._id))

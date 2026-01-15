@@ -8,13 +8,15 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import api from '../utils/Api';
 import { faSearch, faArrowRight, faPlus } from '@fortawesome/free-solid-svg-icons';
 import { jwtDecode } from 'jwt-decode';
+import useChatSocket from '../hooks/useChatSocket';
+import userId from '../utils/UserId';
 
 
-function ChatListing({ newChatCard, setActiveChatRooms, fetchActiveChatRooms, activeChatRooms }) {
+function ChatListing({ newChatCard, setActiveChatRooms, activeChatRooms }) {
 
-    const token = localStorage.getItem('token');
-    const decodedToken = jwtDecode(token);
-    const userId = decodedToken.userId;
+    // const token = localStorage.getItem('token');
+    // const decodedToken = jwtDecode(token);
+    // const userId = decodedToken.userId;
 
     // const [activeChatRooms, setActiveChatRooms] = useState([]);
     const [isChatMenuVisible, setIsChatMenuVisible] = useState(null);
@@ -22,6 +24,7 @@ function ChatListing({ newChatCard, setActiveChatRooms, fetchActiveChatRooms, ac
 
     // const currentChat = useSelector((state) => state.chat.currentChat);
     const currentChatRoom = useSelector((state) => state.chatRoom.currentChatRoom);
+    // const { socketRef }  = 
 
     const menuRef = useRef(null);
 
@@ -31,6 +34,11 @@ function ChatListing({ newChatCard, setActiveChatRooms, fetchActiveChatRooms, ac
 
 
     const handleChatClick = async (newChat) => {
+        setActiveChatRooms(prev =>
+        prev.map(r =>
+            r._id === newChat._id ? { ...r, unreadMsgs: 0 } : r
+        )
+    );
 
         dispatch(setCurrentChat(newChat));
         let recipientID = newChat._id;
@@ -43,10 +51,15 @@ function ChatListing({ newChatCard, setActiveChatRooms, fetchActiveChatRooms, ac
             }
         } catch (err) {
             console.log(err)
-        }
+        } 
     }
 
     const handleGroupChatClick = async (groupChat) => {
+        setActiveChatRooms(prev =>
+        prev.map(r =>
+            r._id === groupChat._id ? { ...r, unreadMsgs: 0 } : r
+        )
+    );
         dispatch(setCurrentChat(null));
         dispatch(setCurrentChatRoom(groupChat));
     }
@@ -97,43 +110,6 @@ function ChatListing({ newChatCard, setActiveChatRooms, fetchActiveChatRooms, ac
         }
     };
 
-    // useEffect(() => {
-    //     // if (!searchChatRoom.trim()) {
-    //     //     return;
-    //     // }
-    //     const searchActiveUser = async () => {
-    //         try {
-    //             const response = await api.get('/api/chatRoom/searchActiveChatRoom', {
-    //                 params: { searchChatRoom },
-    //                 withCredentials: true
-    //             })
-    //             if (response.data.success) {
-    //                 setActiveChatRooms(response.data.chatRooms);
-    //             }
-    //         } catch (err) {
-    //             console.log(err);
-    //         }
-    //     }
-    //     searchActiveUser();
-    // }, [searchChatRoom])
-
-    // useEffect(() => {
-    //     const fetchActiveChatRooms = async () => {
-    //         try {
-    //             const response = await api.get('/api/chatRoom/getAllChatRooms', {
-    //                 withCredentials: true
-    //             });
-    //             if (response.data.success) {
-    //                 console.log(response.data.chatRooms);
-    //                 setActiveChatRooms(response.data.chatRooms.filter(chatRoom => !chatRoom.deletedFor.includes(userId)));
-    //             }
-    //         } catch (err) {
-    //             console.log(err);
-    //         }
-    //     }
-    //     fetchActiveChatRooms();
-    //     console.log("activechatrroms:", activeChatRooms);
-    // }, [currentChatRoom]);
 
     const fetchChatRooms = async () => {
         try {
@@ -158,10 +134,11 @@ function ChatListing({ newChatCard, setActiveChatRooms, fetchActiveChatRooms, ac
         }
 
     }
+              
       
     useEffect(()=>{
           fetchChatRooms();
-    },[currentChatRoom,searchChatRoom])
+    },[searchChatRoom])
 
     useEffect(() => {
         document.addEventListener('click', handleClickOutside);
@@ -234,7 +211,7 @@ function ChatListing({ newChatCard, setActiveChatRooms, fetchActiveChatRooms, ac
                                     <div className='flex justify-between w-full mt-0'>
                                         <p className='text-sm text-gray-600 truncate max-w-[70%]'>{chatRoom?.lastMessage?.sender === userId ? 'You: ' + chatRoom?.lastMessage?.content : chatRoom?.lastMessage?.content}</p>
 
-                                        {!chatRoom?.isGroupChat && chatRoom?.unreadMsgs > 0 && (
+                                        { chatRoom?.unreadMsgs > 0 && (
                                             <p className='min-w-[20px] h-[20px] px-2 rounded-full text-xs font-semibold text-white bg-anotherPrimary text-center flex items-center justify-center'>
                                                 {chatRoom.unreadMsgs}
                                             </p>

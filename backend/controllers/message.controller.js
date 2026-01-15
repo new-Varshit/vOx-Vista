@@ -2,17 +2,17 @@ import { Message } from "../model/message.model.js";
 import { ChatRoom } from '../model/chatRoom.model.js';
 import cloudinary from '../utils/cloudinary.js';
 import getDataUri from '../utils/dataUri.js';
-
+import { io } from "../index.js";
 // saving a message in the database 
 
 export const sendMessage = async (req, res) => {
   const { content, chatRoomId } = req.body;
   const senderId = req.id.userId;
 
-    //  console.log('printing : ',content,chatRoomId);
+  //  console.log('printing : ',content,chatRoomId);
 
   let attachments = [];
- 
+
   //  console.log(req.files);
 
   if (req.files && req.files.length > 0) {
@@ -31,7 +31,7 @@ export const sendMessage = async (req, res) => {
       const cloudResponses = await Promise.all(uploadPromises);
 
       // Collect the URLs to send back in the response
-      attachments = cloudResponses.map((response,index) => ({
+      attachments = cloudResponses.map((response, index) => ({
         url: response.secure_url,   // Direct URL for the resource
         public_id: response.public_id,
         mimeType: req.files[index].mimetype
@@ -56,19 +56,41 @@ export const sendMessage = async (req, res) => {
       sender: senderId,
       chatRoom: chatRoomId,
       attachments,
-      status: 'sent',
+      deliveredTo: [],
+      readBy: [],
     });
+
+    let chatRoom = await ChatRoom.findById(chatRoomId).populate("members");
+       
+    const isFirstMessage = !chatRoom.hasMessage && !chatRoom.isGroupChat;
 
     await ChatRoom.findByIdAndUpdate(chatRoomId, {
       $set: {
-        deletedFor: [],
+        hasMessage: true,
         lastMessage: message._id,
-        hasMessage: true
-      },
+        deletedFor: []
+      }
     });
-      //  console.log('message: ' , message);
-    const populatedMessage = (await message.populate(['sender','chatRoom']));
 
+    if(isFirstMessage){
+      const receiver = chatRoom.members.find(
+        m => m._id.toString() !== senderId.toString()
+      );
+    
+      chatRoom = {
+        ...chatRoom.toObject(),
+        receiver,
+        lastMessage:message,
+        unreadMsgs:0
+      }
+      io.to(receiver._id.toString()).emit("newChatRoom", {
+        chatRoom
+      });
+    }
+
+    //  console.log('message: ' , message);
+    const populatedMessage = (await message.populate(['sender', 'chatRoom']));
+       
     res.status(200).json({ success: true, message: populatedMessage });
   } catch (err) {
     console.log('Message creation error:', err);
@@ -124,7 +146,7 @@ export const updateMsgToDelivered = async (req, res) => {
 
 export const updateMsgsToRead = async (req, res) => {
   const senderId = req.params.senderId;
-
+  console.log('hello');
   try {
 
     const updatedMessages = await Message.updateMany(
@@ -211,7 +233,7 @@ const getChatRoomsForUser = async (userId) => {
 export const deleteSelectedMsgs = async (req, res) => {
   const userId = req.id.userId;
   const { selectedMsgs } = req.body;
-  
+
   try {
     // 1. Add the userId to the deletedFor array
     await Message.updateMany(
@@ -282,7 +304,7 @@ export const deleteMsgForEveryone = async (req, res) => {
   try {
     // Find the message by its ID
     const msg = await Message.findById(msgId);
-
+    const chatRoomId = msg.chatRoom;
     if (!msg) {
       return res.status(404).json({
         success: false,
@@ -303,6 +325,11 @@ export const deleteMsgForEveryone = async (req, res) => {
 
     // Delete the message from the database
     await Message.findByIdAndDelete(msgId);
+
+    io.to(chatRoomId).emit("messageDeleted", {
+      messageId: msgId,
+      chatRoomId
+    });
 
     return res.status(200).json({
       success: true,
@@ -331,8 +358,8 @@ export const clrChatRoomMsgs = async (req, res) => {
   try {
     const result = await Message.updateMany({ chatRoom: chatRoomId, deletedFor: { $ne: userId } }, { $addToSet: { deletedFor: userId } });
 
-     //  Find messages where both users have marked it for deletion
-     const msgs = await Message.find({
+    //  Find messages where both users have marked it for deletion
+    const msgs = await Message.find({
       _id: { $in: selectedMsgs },
       $expr: {
         $and: [

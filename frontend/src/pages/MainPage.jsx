@@ -1,5 +1,5 @@
 import React from 'react';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../utils/Api';
 import { useDispatch } from 'react-redux';
@@ -13,6 +13,13 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faTimes } from '@fortawesome/free-solid-svg-icons';
 import { setCurrentChat } from '../store/chatSlice';
 import { setCurrentChatRoom } from '../store/chatRoomSlice';
+import useChatSocket from "../hooks/useChatSocket";
+import { jwtDecode } from "jwt-decode";
+import { useSelector } from "react-redux";
+import { current } from '@reduxjs/toolkit';
+import userId from '../utils/UserId';
+
+
 
 
 function MainPage() {
@@ -20,6 +27,7 @@ function MainPage() {
     const navigate = useNavigate();
     const dispatch = useDispatch();
 
+    const [messages, setMessages] = useState([]);
     const [activeChatRooms, setActiveChatRooms] = useState([]);
     const [isSideProfileCard, setIsSideProfileCard] = useState(false);
     const [isProfileCardVisible, setisProfileCardVisible] = useState(false);
@@ -27,6 +35,382 @@ function MainPage() {
     const [isDelOptCardVisible, setIsDelOptCardVisible] = useState(false);
     const [profileData, setProfileData] = useState('');
     const [msgId, setMsgId] = useState(null);
+    const [newMembers, setNewMembers] = useState([]);
+    const [potentialMembers, setPotentialMembers] = useState([]);
+    const [isSearchNewMember, setIsSearchNewMember] = useState(false);
+    const [searchInput, setSearchInput] = useState('');
+    const [isGroupInfoCardVisible, setIsGroupInfoCardVisible] = useState(false);
+    const [groupPreviewIcon, setGroupPreviewIcon] = useState(null);
+    const [groupName, setGroupName] = useState("");
+    const [groupDescription, setGroupDescription] = useState("");
+    const [groupPreviewIconFile, setGroupPreviewIconFile] = useState(null);
+    const [isConfirmMemRemoval, setIsConfirmMemRemoval] = useState(false);
+    const [selectedMember, setSelectedMember] = useState(null);
+    const [isConfirmExitGrp, setIsConfirmExitGrp] = useState(false);
+    const [accessMessage, setAccessMessage] = useState('');
+    const [isConfirmDltGrp, setIsConfirmDltGrp] = useState(false);
+
+    // const token = localStorage.getItem("token");
+    // const decodedToken = jwtDecode(token);
+    // const userId = decodedToken.userId;
+
+    const currentChatRoom = useSelector(
+        (state) => state.chatRoom.currentChatRoom
+    );
+
+    const currentChatRoomRef = useRef(currentChatRoom);
+
+    useEffect(() => {
+        currentChatRoomRef.current = currentChatRoom;
+        setGroupName(currentChatRoom?.name || "");
+        setGroupDescription(currentChatRoom?.description || "");
+    }, [currentChatRoom]);
+
+
+    const { socketRef, emitTyping, emitStopTyping, joinChatRoom,
+        leavePersonalRoom } = useChatSocket({
+            userId,
+        });
+
+    useEffect(() => {
+
+        if (!socketRef) return;
+        const socket = socketRef.current;
+
+        const handleIncrementUnread = ({ chatRoomId, message }) => {
+            setActiveChatRooms(prev =>
+                prev.map(room => {
+                    if (room._id !== chatRoomId) return room;
+
+                    const isActive =
+                        currentChatRoomRef.current?._id === chatRoomId;
+
+                    return {
+                        ...room,
+                        lastMessage: message,
+                        unreadMsgs: isActive
+                            ? room.unreadMsgs || 0   // no increment
+                            : (room.unreadMsgs || 0) + 1
+                    };
+                })
+            );
+        };
+        socket.on("incrementUnread", handleIncrementUnread);
+        return () => socket.off("incrementUnread", handleIncrementUnread);
+    }, [socketRef]);
+
+
+    useEffect(() => {
+
+        if (!socketRef) return;
+        const socket = socketRef.current;
+
+        const handleGlobalDelivery = async (message) => {
+            console.log('handleglobaldelivery')
+            if (message.sender._id === userId) return;
+
+            setActiveChatRooms(prev => {
+                const index = prev.findIndex(
+                    room => room._id === message.chatRoom._id
+                );
+
+                if (index === -1) return prev;
+
+                const updatedRoom = prev[index];
+
+                const newList = [...prev];
+                newList.splice(index, 1);
+                newList.unshift(updatedRoom);
+
+                return newList;
+            });
+
+
+            socket.emit("ack-Delivered", {
+                messageId: message._id,
+                senderId: message.sender._id,
+                chatRoomId: message.chatRoom._id,
+                isRead: currentChatRoomRef.current?._id === message.chatRoom._id
+            });
+
+            console.log("ACK sent for:", message._id);
+
+        };
+
+
+        const handleGlobalDeliveredUI =  ({ messageId, senderId, deliveredtoId }) => {
+            console.log('inside msgsDelivered event');
+              
+
+            if (senderId !== userId) return;
+
+            try {
+
+                setMessages(prev =>
+                    prev.map(msg => {
+                        if (msg._id !== messageId) return msg;
+
+                        if (msg.deliveredTo?.includes(deliveredtoId)) return msg;
+
+                        return {
+                            ...msg,
+                            deliveredTo: [...(msg.deliveredTo || []), deliveredtoId],
+                        };
+                    })
+                );
+
+            } catch (err) {
+                console.log(err);
+            }
+        }
+
+
+        const handleBulkmsgDelivered = async ({ deliveredtoId }) => {
+            console.log('hello there');
+            if (deliveredtoId === userId) return;
+            try {
+                setMessages(prev =>
+                    prev.map(msg => {
+                        if (msg.deliveredTo?.includes(deliveredtoId)) return msg;
+                        return {
+                            ...msg,
+                            deliveredTo: [...(msg.deliveredTo || []), deliveredtoId]
+                        }
+                    })
+                )
+            } catch (err) {
+                console.log(err);
+            }
+        }
+
+        const handleUnreadCountZero = async ({ chatRoomId, readerId }) => {
+            console.log('1');
+            if (readerId !== userId) return; // only me
+            console.log('2');
+            try {
+                setActiveChatRooms(prev =>
+                    prev.map(room =>
+                        room._id === chatRoomId
+                            ? { ...room, unreadMsgs: 0 }
+                            : room
+                    )
+                );
+            } catch (err) {
+                console.log(err);
+            }
+        }
+
+        const handleNewChatRoomAddition = ({ chatRoom }) => {
+            try {
+
+                setActiveChatRooms(prev => {
+                    // 🔒 prevent duplicates
+                    const alreadyExists = prev.some(room => room._id === chatRoom._id);
+                    if (alreadyExists) return prev;
+
+                    return [
+                        {
+                            ...chatRoom
+                        },
+                        ...prev // 👈 add to TOP
+                    ];
+                });
+            } catch (err) {
+                console.log(err);
+            }
+        };
+
+        const handleNewGrpChatCreated = ({ groupChatRoom }) => {
+            setActiveChatRooms(prev => {
+                if (prev.some(m => m._id === groupChatRoom._id)) return prev;
+                return [groupChatRoom, ...prev];
+            });
+        }
+
+        const handleGrpAddition = ({ newGrpChat }) => {
+            console.log('Grp addition', newGrpChat);
+
+            try {
+                setActiveChatRooms(prev => {
+                    // prevent duplicates
+                    if (prev.some(room => room._id === newGrpChat._id)) return prev;
+
+                    // add new group at the top
+                    return [newGrpChat, ...prev];
+                });
+            } catch (err) {
+                console.log(err);
+            }
+        };
+
+        const handleMemberRemoved = ({ members, chatRoomId }) => {
+            try {
+                if (currentChatRoomRef.current?._id === chatRoomId) {
+                    dispatch(
+                        setCurrentChatRoom({
+                            ...currentChatRoomRef.current,
+                            members
+                        })
+                    );
+                }
+            } catch (err) {
+                console.log(err);
+            }
+        }
+
+        const handleRemovalFromGrp = ({ chatRoomId, message }) => {
+            try {
+                setActiveChatRooms(prev => {
+                    return prev.filter(room => room._id !== chatRoomId)
+                });
+
+                if (currentChatRoomRef.current?._id === chatRoomId) {
+                    dispatch(
+                        setCurrentChatRoom({
+                            ...currentChatRoomRef.current,
+                            isAllowed: false
+                        })
+                    );
+                    setAccessMessage(message);
+                }
+            } catch (err) {
+                console.log(err);
+            }
+        }
+
+        const handleGrpMembersUpdation = ({ chatRoomId, members }) => {
+            try {
+                // Update chat listing
+                setActiveChatRooms(prev =>
+                    prev.map(room =>
+                        room._id === chatRoomId
+                            ? { ...room, members }
+                            : room
+                    )
+                );
+
+                // If this group is currently open, update it in real time
+                if (currentChatRoomRef.current?._id === chatRoomId) {
+                    dispatch(
+                        setCurrentChatRoom({
+                            ...currentChatRoomRef.current,
+                            members
+                        })
+                    );
+                }
+            } catch (err) {
+                console.log(err);
+            }
+        };
+
+        const handleGrpInfoEdited = ({ updatedGroup }) => {
+            try {
+                setActiveChatRooms(prev =>
+                    prev.map(room =>
+                        room._id === updatedGroup._id
+                            ? {
+                                ...room,              // keep unreadMsgs, lastMessage, etc.
+                                ...updatedGroup       // overwrite name, icon, description, members
+                            }
+                            : room
+                    )
+                );
+
+                if (currentChatRoomRef.current?._id === updatedGroup._id) {
+                    dispatch(setCurrentChatRoom({
+                        ...currentChatRoomRef.current,
+                        ...updatedGroup
+                    }));
+                }
+            } catch (err) {
+                console.log(err);
+            }
+        };
+
+        const handleMemberExitGrp = ({ chatRoomId, members, admin }) => {
+            try {
+                if (currentChatRoomRef.current._id !== chatRoomId) return;
+
+                dispatch(setCurrentChatRoom({
+                    ...currentChatRoomRef.current,
+                    members,
+                    admin
+                }));
+            } catch (err) {
+                console.log(err);
+            }
+        };
+
+        const handleYouExitGrp = ({ chatRoomId, message }) => {
+            try {
+                setActiveChatRooms(prev =>
+                    prev.filter(room => room._id !== chatRoomId)
+                );
+
+                if (currentChatRoomRef.current._id !== chatRoomId) return;
+
+                dispatch(setCurrentChatRoom({
+                    ...currentChatRoomRef.current,
+                    isAllowed: false
+                }));
+
+                setAccessMessage(message);
+            } catch (err) {
+                console.log(err);
+            }
+        };
+           
+     const handleGrpDeletion = ({chatRoomId,message}) => {
+        try{
+              setActiveChatRooms(prev => prev.filter(room => room._id !== chatRoomId))
+             if(currentChatRoomRef.current._id !== chatRoomId)return;
+              dispatch(setCurrentChatRoom({
+                   ...currentChatRoomRef.current,
+                   isAllowed : false
+              }))
+              setAccessMessage(message);
+             
+        }catch(err){
+            console.log(err);
+        }
+     }
+
+
+        socket.on("grpDeleted",handleGrpDeletion);
+        socket.on("exitGrp", handleYouExitGrp);
+        socket.on("memberExitGrp", handleMemberExitGrp);
+        socket.on("removedFromGrp", handleRemovalFromGrp);
+        socket.on("memberRemoved", handleMemberRemoved);
+        socket.on("grpInfoEdited", handleGrpInfoEdited);
+        socket.on("grpMembersUpdated", handleGrpMembersUpdation);
+        socket.on("addedToGrp", handleGrpAddition);
+        socket.on("newGrpChatCreated", handleNewGrpChatCreated);
+        socket.on("newChatRoom", handleNewChatRoomAddition);
+        socket.on("msgsRead", handleUnreadCountZero);
+        socket.on("msgDeliveredBulk", handleBulkmsgDelivered);
+        socket.on("receiveMessage", handleGlobalDelivery);
+        socket.on("msgDelivered", handleGlobalDeliveredUI);
+        return () => {
+            socket.off("grpDeleted",handleGrpDeletion);
+            socket.off("exitGrp", handleYouExitGrp);
+            socket.off("memberExitGrp", handleMemberExitGrp);
+            socket.off("removedFromGrp", handleRemovalFromGrp);
+            socket.off("memberRemoved", handleMemberRemoved);
+            socket.off("grpInfoEdited", handleGrpInfoEdited);
+            socket.off("grpMembersUpdated", handleGrpMembersUpdation);
+            socket.off("addedToGrp", handleGrpAddition);
+            socket.off("newGrpChatCreated", handleNewGrpChatCreated);
+            socket.off("newChatRoom", handleNewChatRoomAddition);
+            socket.off("msgsRead", handleUnreadCountZero);
+            socket.off("msgDeliveredBulk", handleBulkmsgDelivered);
+            socket.off("receiveMessage", handleGlobalDelivery);
+            socket.off("msgDelivered", handleGlobalDeliveredUI);
+        }
+    }, []);
+
+
+
+
 
     const profileCardToggle = () => {
         setisProfileCardVisible(!isProfileCardVisible);
@@ -117,23 +501,172 @@ function MainPage() {
         }
     }
 
+    useEffect(() => {
+        if (!searchInput.trim()) {
+            setPotentialMembers([]);
+            // setMessage('');
+            return;
+        }
+        const timeoutId = setTimeout(async () => {
+
+            const searchQuery = async () => {
+                try {
+                    const response = await api.get('/api/user/searchUser', {
+                        params: { searchInput },
+                        withCredentials: true
+                    })
+                    if (response.data.success) {
+                        if (response.data.searchResult.length === 0) {
+                            // setMessage('User not found');
+                        }
+                        setPotentialMembers(response.data.searchResult);
+                    }
+                } catch (err) {
+                    console.log(err);
+                }
+            }
+            searchQuery();
+        }, 1000);
+        return () => clearTimeout(timeoutId);
+
+    }, [searchInput]);
 
 
-    const fetchActiveChatRooms = async () => {
+    const toggleMember = (member) => {
+        setNewMembers(prev => {
+            if (prev.some(m => m._id === member._id)) {
+                return prev.filter(m => m._id !== member._id);
+            }
+            return [...prev, member];
+        });
+    };
+
+    const handleMemberSelection = async () => {
         try {
-            const response = await api.get('/api/chatRoom/getAllChatRooms', {
+            const memberIds = newMembers.map(m => m._id);
+            await api.post('/api/chatRoom/addMembers', {
+                chatRoomId: currentChatRoom._id,
+                members: memberIds
+            },
+                { withCredentials: true });
+
+            setIsSearchNewMember(false);
+            setNewMembers([]);
+
+        } catch (err) {
+            console.log(err);
+        }
+    }
+
+    useEffect(() => {
+        if (isSearchNewMember) {
+            setSearchInput("");
+            setPotentialMembers([]);
+            setNewMembers([]);
+        }
+    }, [isSearchNewMember]);
+
+
+    const filteredPotentialMembers = potentialMembers.filter(
+        u => !currentChatRoom?.members?.some(m => m._id === u._id)
+    );
+
+
+
+    const handleGroupIconChange = (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        setGroupPreviewIcon(URL.createObjectURL(file));
+        setGroupPreviewIconFile(file);
+    };
+
+
+    const handleUpdateGroupInfo = async () => {
+        try {
+            const formData = new FormData();
+            formData.append("chatRoomId", currentChatRoom._id);
+            formData.append("name", groupName);
+            formData.append("description", groupDescription);
+
+            if (groupPreviewIconFile) {
+                formData.append("groupIcon", groupPreviewIconFile);
+            }
+
+            const res = await api.post(
+                "/api/chatRoom/groupInfoEdit",
+                formData,
+                {
+                    withCredentials: true,
+                    headers: {
+                        "Content-Type": "multipart/form-data",
+                    },
+                }
+            );
+
+            if (res.data.success) {
+                setIsGroupInfoCardVisible(false);
+            }
+        } catch (err) {
+            console.log(err);
+        }
+    };
+
+
+
+    const handleGroupInfoCleaner = () => {
+        setGroupDescription(currentChatRoom?.description || "");
+        setGroupName(currentChatRoom?.name || "");
+        setGroupPreviewIcon(null);
+    }
+    const handleRemoveMember = async () => {
+        try {
+            const res = await api.post(
+                '/api/chatRoom/removeMember',
+                {
+                    member: selectedMember,
+                    chatRoomId: currentChatRoomRef.current._id
+                },
+                { withCredentials: true }
+            );
+
+            if (res.data.success) {
+                setIsConfirmMemRemoval(false);
+            }
+        } catch (err) {
+            console.log(err);
+        }
+    };
+    const handleExitGrp = async () => {
+        try {
+            const res = await api.post('/api/chatRoom/exitGrp', {
+                chatRoomId: currentChatRoomRef.current._id
+            }, {
                 withCredentials: true
             });
-            if (response.data.success) {
-                console.log(response.data.chatRooms);
-                setActiveChatRooms(response.data.chatRooms.filter(chatRoom => !chatRoom.deletedFor.includes(userId)));
+            if (res.data.success) {
+                setIsConfirmExitGrp(false);
+                setIsSideProfileCard(false);
             }
         } catch (err) {
             console.log(err);
         }
     }
 
-
+    const handleDeleteGrp = async () => {
+        try{
+           const res = await api.post('/api/chatRoom/deleteGrp',{
+                chatRoomId : currentChatRoomRef.current._id
+            },{
+                withCredentials:true
+            })
+            if(res.data.success){
+                setIsConfirmDltGrp(false);
+                setIsSideProfileCard(false);
+            }
+        }catch(err){
+            console.log(err);
+        }
+    }
 
     return (
         <>
@@ -154,7 +687,6 @@ function MainPage() {
                                             src={profileData.profile.profilePic}
                                             alt="Profile"
                                             className="w-full h-full object-cover rounded-full transition-transform duration-300 hover:scale-105"
-
                                         />
                                     )}
                                 </div>
@@ -178,19 +710,32 @@ function MainPage() {
                     </div>
 
                     <div className='flex-1 overflow-auto bg-gray-200 m-2 rounded-bl-2xl mt-0'>
-                        <ChatListing newChatCard={newChatCard} setActiveChatRooms={setActiveChatRooms} activeChatRooms={activeChatRooms} fetchActiveChatRooms={fetchActiveChatRooms} />
+                        <ChatListing newChatCard={newChatCard} setActiveChatRooms={setActiveChatRooms} activeChatRooms={activeChatRooms} />
                     </div>
                 </div>
 
 
                 <div className={`${isSideProfileCard ? 'w-1/2' : 'w-3/4'}   h-full py-2`}>
-                    <ChatSection sideProfileCard={sideProfileCard} fetchActiveChatRooms={fetchActiveChatRooms} isSideProfileCard={isSideProfileCard} delOptCardToggle={delOptCardToggle} />
+                    <ChatSection
+                        accessMessage={accessMessage}
+                        setActiveChatRooms={setActiveChatRooms}
+                        socketRef={socketRef}
+                        emitTyping={emitTyping}
+                        emitStopTyping={emitStopTyping}
+                        joinChatRoom={joinChatRoom}
+                        leavePersonalRoom={leavePersonalRoom}
+                        sideProfileCard={sideProfileCard}
+                        isSideProfileCard={isSideProfileCard}
+                        delOptCardToggle={delOptCardToggle}
+                        messages={messages}
+                        setMessages={setMessages}
+                    />
                 </div>
 
 
 
                 {isSideProfileCard &&
-                    <SideProfileSection />
+                    <SideProfileSection setIsSearchNewMember={setIsSearchNewMember} setIsGroupInfoCardVisible={setIsGroupInfoCardVisible} setSelectedMember={setSelectedMember} setIsConfirmMemRemoval={setIsConfirmMemRemoval} setIsConfirmExitGrp={setIsConfirmExitGrp} setIsConfirmDltGrp={setIsConfirmDltGrp}/>
                 }
 
                 {isProfileCardVisible &&
@@ -222,6 +767,252 @@ function MainPage() {
                         </div>
                     )
                 }
+
+                {isSearchNewMember && (
+                    <div
+                        className="fixed inset-0 z-50 bg-black/30 flex items-center justify-center"
+                        onClick={() => {
+                            setIsSearchNewMember(false);
+                            setPotentialMembers([]);
+                            setNewMembers([]);
+                        }}
+                    >
+                        <div
+                            className="w-[380px] py-6 px-5 bg-gray-200 rounded-xl shadow-xl flex flex-col gap-4"
+                            onClick={(e) => e.stopPropagation()}
+                        >
+                            <h3 className="text-lg font-bold text-center text-anotherPrimary">
+                                Add Members
+                            </h3>
+                            <input
+                                className="rounded-full py-2 px-4 text-sm w-full focus:outline-none text-gray-700"
+                                type="text"
+                                placeholder="Search email or username"
+                                onChange={(e) => setSearchInput(e.target.value)}
+                            />
+
+                            {/* Selected members */}
+                            {newMembers.length > 0 && (
+                                <div className="flex flex-wrap gap-2">
+                                    {newMembers.map(mem => (
+                                        <span
+                                            key={mem._id}
+                                            className="px-3 py-1 bg-anotherPrimary text-white text-xs rounded-full"
+                                        >
+                                            {mem.userName}
+                                        </span>
+                                    ))}
+                                </div>
+                            )}
+
+                            {/* Search results */}
+                            <div className="max-h-56 overflow-y-auto flex flex-col gap-2">
+                                {filteredPotentialMembers.map((potMem) => {
+                                    const isSelected = newMembers.some(m => m._id === potMem._id);
+
+                                    return (
+                                        <div
+                                            key={potMem._id}
+                                            onClick={() => toggleMember(potMem)}
+                                            className={`flex items-center gap-3 p-2 rounded-lg cursor-pointer 
+                ${isSelected ? "bg-anotherPrimary text-white" : "bg-white"}
+              `}
+                                        >
+                                            <img
+                                                src={potMem.profile?.profilePic}
+                                                className="w-8 h-8 rounded-full object-cover"
+                                            />
+                                            <div className="flex flex-col">
+                                                <span className="text-sm font-medium">{potMem.userName}</span>
+                                                <span className="text-xs text-gray-500">{potMem.email}</span>
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+
+                            {/* Actions */}
+
+
+                            {newMembers.length > 0 && (
+                                <div className="flex justify-end gap-3 pt-2">
+                                    <button
+                                        className="px-4 py-1 rounded-md border border-anotherPrimary text-anotherPrimary"
+                                        onClick={() => {
+                                            setIsSearchNewMember(false);
+                                            setPotentialMembers([]);
+                                            setNewMembers([]);
+                                        }}
+                                    >
+                                        Cancel
+                                    </button>
+
+                                    <button
+                                        disabled={newMembers.length === 0}
+                                        className={`px-4 py-1 rounded-md text-white ${newMembers.length === 0 ? "bg-gray-400 cursor-not-allowed" : "bg-anotherPrimary"}`}
+                                        onClick={handleMemberSelection}
+                                    >
+                                        Add
+                                    </button>
+                                </div>
+
+                            )}
+
+                        </div>
+                    </div>
+                )}
+
+
+                {isGroupInfoCardVisible && (
+                    <div className="fixed inset-0 z-50 bg-black/30 flex items-center justify-center">
+                        <div className="w-[420px] bg-gray-200 rounded-xl shadow-xl p-6 flex flex-col gap-5">
+
+                            <div className="flex justify-between items-center">
+                                <h3 className="text-lg font-bold text-anotherPrimary">
+                                    Edit Group Info
+                                </h3>
+                                <button
+                                    onClick={() => { setIsGroupInfoCardVisible(false); handleGroupInfoCleaner(); }}
+                                    className="text-anotherPrimary hover:text-blue-900 text-xl"
+                                >
+                                    ✕
+                                </button>
+                            </div>
+
+                            {/* Group Icon */}
+                            <div className="flex flex-col items-center gap-2">
+                                <div className="w-24 h-24 rounded-full overflow-hidden border-2 border-anotherPrimary">
+                                    <img
+                                        src={groupPreviewIcon || currentChatRoom?.groupIcon}
+                                        className="w-full h-full object-cover"
+                                    />
+                                </div>
+                                <label className="text-sm text-anotherPrimary cursor-pointer font-medium">
+                                    Change Icon
+                                    <input
+                                        type="file"
+                                        accept="image/*"
+                                        className="hidden"
+                                        onChange={handleGroupIconChange}
+                                    />
+                                </label>
+                            </div>
+
+                            {/* Group Name */}
+                            <div className="flex flex-col gap-1">
+                                <label className="text-sm font-medium text-gray-700">
+                                    Group Name
+                                </label>
+                                <input
+                                    type="text"
+                                    value={groupName}
+                                    onChange={(e) => setGroupName(e.target.value)}
+                                    className="rounded-lg px-3 py-2 text-sm focus:outline-none"
+                                    placeholder="Enter group name"
+                                />
+                            </div>
+
+                            {/* Group Description */}
+                            <div className="flex flex-col gap-1">
+                                <label className="text-sm font-medium text-gray-700">
+                                    Description
+                                </label>
+                                <textarea
+                                    value={groupDescription}
+                                    onChange={(e) => setGroupDescription(e.target.value)}
+                                    rows={3}
+                                    className="rounded-lg px-3 py-2 text-sm focus:outline-none resize-none"
+                                    placeholder="Write something about the group..."
+                                />
+                            </div>
+
+                            {/* Actions */}
+                            <div className="flex justify-end gap-3 pt-2">
+                                <button
+                                    onClick={() => { setIsGroupInfoCardVisible(false); handleGroupInfoCleaner() }}
+                                    className="px-4 py-1 rounded-md border border-anotherPrimary text-anotherPrimary"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    onClick={handleUpdateGroupInfo}
+                                    className="px-4 py-1 rounded-md bg-anotherPrimary text-white"
+                                >
+                                    Save
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
+                {(isConfirmMemRemoval || isConfirmExitGrp) && (
+                    <div className="fixed inset-0 z-50 bg-black/30 flex items-center justify-center">
+                        <div className="w-[360px] bg-gray-200 rounded-xl shadow-xl p-5 flex flex-col gap-4">
+
+                            <h3 className="text-lg font-bold text-center text-anotherPrimary">
+                                {isConfirmMemRemoval ? "Remove Member" : "Exit Group"}
+                            </h3>
+
+                            <p className="text-sm text-gray-700 text-center">
+                                {isConfirmMemRemoval ?
+                                    `Are you sure you want to remove "
+                                ${<span className="font-semibold text-anotherPrimary"> {selectedMember?.userName} </span>}
+                                "from this group?`
+                                    :
+                                    "Are you sure you want to exit the group"
+                                }
+                            </p>
+
+                            <div className="flex justify-center gap-3 pt-2">
+                                <button
+                                    className="px-4 py-1 rounded-md border border-anotherPrimary text-anotherPrimary"
+                                    onClick={isConfirmMemRemoval ? () => setIsConfirmMemRemoval(false) : () => setIsConfirmExitGrp(false)}
+                                >
+                                    Cancel
+                                </button>
+
+                                <button
+                                    className="px-4 py-1 rounded-md bg-red-500 text-white hover:bg-red-600"
+                                    onClick={isConfirmMemRemoval ? handleRemoveMember : handleExitGrp}
+                                >
+                                    {isConfirmMemRemoval ? 'Remove' : 'Exit'}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
+                {isConfirmDltGrp && (
+                    <div className="fixed inset-0 z-50 bg-black/30 flex items-center justify-center">
+                        <div className="w-[360px] bg-gray-200 rounded-xl shadow-xl p-5 flex flex-col gap-4">
+
+                            <h3 className="text-lg font-bold text-center text-anotherPrimary">
+                                Delete Group
+                            </h3>
+
+                            <p className="text-sm text-gray-700 text-center">
+                                Are you sure you want to delete this group ? 
+                            </p>
+
+                            <div className="flex justify-center gap-3 pt-2">
+                                <button
+                                    className="px-4 py-1 rounded-md border border-anotherPrimary text-anotherPrimary"
+                                    onClick={()=>setIsConfirmDltGrp(false)}
+                                >
+                                    Cancel
+                                </button>
+
+                                <button
+                                    className="px-4 py-1 rounded-md bg-red-500 text-white hover:bg-red-600"
+                                    onClick={handleDeleteGrp}
+                                >
+                                    Delete
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
 
             </div>
 
