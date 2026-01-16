@@ -34,10 +34,10 @@ function ChatListing({ newChatCard, setActiveChatRooms, activeChatRooms }) {
 
     const handleChatClick = async (newChat) => {
         setActiveChatRooms(prev =>
-        prev.map(r =>
-            r._id === newChat._id ? { ...r, unreadMsgs: 0 } : r
-        )
-    );
+            prev.map(r =>
+                r._id === newChat._id ? { ...r, unreadMsgs: 0 } : r
+            )
+        );
 
         dispatch(setCurrentChat(newChat));
         let recipientID = newChat._id;
@@ -50,15 +50,15 @@ function ChatListing({ newChatCard, setActiveChatRooms, activeChatRooms }) {
             }
         } catch (err) {
             console.log(err)
-        } 
+        }
     }
 
     const handleGroupChatClick = async (groupChat) => {
         setActiveChatRooms(prev =>
-        prev.map(r =>
-            r._id === groupChat._id ? { ...r, unreadMsgs: 0 } : r
-        )
-    );
+            prev.map(r =>
+                r._id === groupChat._id ? { ...r, unreadMsgs: 0 } : r
+            )
+        );
         dispatch(setCurrentChat(null));
         dispatch(setCurrentChatRoom(groupChat));
     }
@@ -138,11 +138,11 @@ function ChatListing({ newChatCard, setActiveChatRooms, activeChatRooms }) {
         }
 
     }
-              
-      
-    useEffect(()=>{
-          fetchChatRooms();
-    },[searchChatRoom])
+
+
+    useEffect(() => {
+        fetchChatRooms();
+    }, [searchChatRoom])
 
     useEffect(() => {
         document.addEventListener('click', handleClickOutside);
@@ -215,7 +215,7 @@ function ChatListing({ newChatCard, setActiveChatRooms, activeChatRooms }) {
                                     <div className='flex justify-between w-full mt-0'>
                                         <p className='text-sm text-gray-600 truncate max-w-[70%]'>{chatRoom?.lastMessage?.sender === userId ? 'You: ' + chatRoom?.lastMessage?.content : chatRoom?.lastMessage?.content}</p>
 
-                                        { chatRoom?.unreadMsgs > 0 && (
+                                        {chatRoom?.unreadMsgs > 0 && (
                                             <p className='min-w-[20px] h-[20px] px-2 rounded-full text-xs font-semibold text-white bg-anotherPrimary text-center flex items-center justify-center'>
                                                 {chatRoom.unreadMsgs}
                                             </p>
@@ -224,9 +224,12 @@ function ChatListing({ newChatCard, setActiveChatRooms, activeChatRooms }) {
                                     </div>
                                 </div>
                                 {
-                                    isChatMenuVisible === chatRoom._id &&
+                                    isChatMenuVisible === chatRoom?._id &&
                                     <div className='absolute p-2 bg-white rounded-lg right-0  top-1/2   flex flex-col z-10'>
-                                        <p className='text-anotherPrimary font-medium text-xs cursor-pointer' onClick={() => deleteActiveChat(chatRoom._id)}>Delete</p>
+
+                                        {!chatRoom?.isGroupChat &&
+                                            <p className='text-anotherPrimary font-medium text-xs cursor-pointer' onClick={() => deleteActiveChat(chatRoom._id)}>Delete</p>}
+
                                         <p className='text-anotherPrimary font-medium text-xs cursor-pointer' >Pin to top</p>
                                         <p className='text-anotherPrimary font-medium text-xs cursor-pointer' onClick={() => clearAllMsgsForUser(chatRoom._id)}>Clear messages</p>
                                     </div>

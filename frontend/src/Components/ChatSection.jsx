@@ -188,53 +188,60 @@ function ChatSection({
   }, [currentChatRoom, messages, userId]);
 
 
+useEffect(() => {
+  const socket = socketRef.current;
+  if (!socket) return;
 
-  useEffect(() => {
-    const socket = socketRef.current;
-    if (!socket) return;
+  // Keep a stable reference to your receive handler (already defined via useCallback)
+  const onReceiveMessage = handleReceiveMessage;
 
-    socket.on("receiveMessage", handleReceiveMessage);
+  const onDisplayTyping = (uid) => {
+    setTypingUsers(prev => (prev.includes(String(uid)) ? prev : [...prev, String(uid)]));
+  };
 
-    socket.on("displayTyping", (userId) => {
-      setTypingUsers((prev) => [...prev, userId]);
-    });
+  const onRemoveTyping = (uid) => {
+    setTypingUsers(prev => prev.filter(id => id !== String(uid)));
+  };
 
-    socket.on("removeTyping", (userId) => {
-      setTypingUsers((prev) => prev.filter((id) => id !== userId));
-    });
+  const onMsgsRead = ({ chatRoomId, readerId }) => {
+    if (String(chatRoomId) !== String(currentChatRoom?._id)) return; // scope to active room
+    setMessages(prev => prev.map(msg => {
+      if (String(msg.sender._id) === String(readerId)) return msg;
+      if ((msg.readBy || []).map(String).includes(String(readerId))) return msg;
+      return { ...msg, readBy: [...(msg.readBy || []), String(readerId)] };
+    }));
+  };
 
-    socket.on("msgsRead", ({ readerId }) => {
-      console.log('hello');
-      setMessages(prev =>
-        prev.map(msg => {
-          if (msg.sender._id === readerId) return msg;
-          if (msg.readBy?.includes(readerId)) return msg;
+  const onMessageDeleted = ({ messageId, chatRoomId }) => {
+    if (chatRoomId && String(chatRoomId) !== String(currentChatRoom?._id)) return;
+    // Some server sends just messageId — handle both shapes
+    const id = messageId || (typeof messageId === 'string' ? messageId : null);
+    if (!id) return;
+    setMessages(prev => prev.filter(msg => String(msg._id) !== String(id)));
+  };
 
-          return {
-            ...msg,
-            readBy: [...(msg.readBy || []), readerId],
-          };
-        })
-      );
-    });
+  const onUpdateOnlineStatus = (users) => {
+    setOnlineUsers(users || []);
+  };
 
-    socket.on("messageDeleted", (messageId) => {
-      setMessages(prev => prev.filter(msg => msg._id !== messageId));
-    });
+  // Register handlers
+  socket.on("receiveMessage", onReceiveMessage);
+  socket.on("displayTyping", onDisplayTyping);
+  socket.on("removeTyping", onRemoveTyping);
+  socket.on("msgsRead", onMsgsRead);
+  socket.on("messageDeleted", onMessageDeleted);
+  socket.on("update-online-status", onUpdateOnlineStatus);
 
-    socket.on("update-online-status", (users) => {
-      setOnlineUsers(users);
-    });
-
-    return () => {
-      socket.off("receiveMessage", handleReceiveMessage);
-      socket.off("displayTyping");
-      socket.off("removeTyping");
-      socket.off("msgsRead");
-      socket.off("messageDeleted");
-      socket.off("update-online-status");
-    };
-  }, [handleReceiveMessage]);
+  // Cleanup using the same function references
+  return () => {
+    socket.off("receiveMessage", onReceiveMessage);
+    socket.off("displayTyping", onDisplayTyping);
+    socket.off("removeTyping", onRemoveTyping);
+    socket.off("msgsRead", onMsgsRead);
+    socket.off("messageDeleted", onMessageDeleted);
+    socket.off("update-online-status", onUpdateOnlineStatus);
+  };
+}, [handleReceiveMessage, currentChatRoom?._id]);
 
 
 
