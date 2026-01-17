@@ -82,12 +82,12 @@ function HeaderSecCS({
                                 <img className="w-full h-full object-cover" src={currentChat?.profile?.profilePic} alt="" onClick={sideProfileCard} />
                             </div>
                             <div className='flex flex-col '>
-                                <p className='font-semibold  text-sm'>{currentChat.userName}</p>
-                                {typingUsers.find(id => id !== currentChat._id)
+                                <p className='font-semibold  text-sm'>{currentChat?.userName}</p>
+                                {typingUsers.find(id => id !== currentChat?._id)
                                     ?
                                     <p className='text-xs font-semibold text-green-500'>Typing...</p>
                                     :
-                                    <p className='text-xs font-medium text-font'>{onlineUsers.find(id => id === currentChat._id) ? 'Online' : 'Offline'}</p>
+                                    <p className='text-xs font-medium text-font'>{onlineUsers.find(id => id === currentChat?._id) ? 'Online' : 'Offline'}</p>
                                 }
                             </div>
                         </div>

@@ -18,7 +18,6 @@ function ChatSection({
   emitTyping,
   emitStopTyping,
   joinChatRoom,
-  leavePersonalRoom,
   sideProfileCard,
   isSideProfileCard,
   delOptCardToggle,
@@ -33,14 +32,13 @@ function ChatSection({
   const currentChatRoom = useSelector((state) => state.chatRoom.currentChatRoom);
   const targetLanguage = useSelector((state) => state.lng.targetLanguage);
   const currentChatRoomRef = useRef(null);
+  const [isMessagesLoading, setIsMessagesLoading] = useState(false);
+
 
   useEffect(() => {
     currentChatRoomRef.current = currentChatRoom;
   }, [currentChatRoom]);
 
-  // const token = localStorage.getItem('token');
-  // const decodedToken = jwtDecode(token);
-  // const userId = decodedToken.userId;
 
 
   const messagesRef = useRef([]);
@@ -296,6 +294,7 @@ useEffect(() => {
       if (!currentChatRoom?._id) {
         return;
       }
+      setIsMessagesLoading(true);
       if (selectedMsgs) {
         handleCancelSelection();
       }
@@ -309,6 +308,8 @@ useEffect(() => {
         }
       } catch (err) {
         console.log(err);
+      }finally{
+        setIsMessagesLoading(false);
       }
     }
     fetchChatRoomMessages();
@@ -319,7 +320,7 @@ useEffect(() => {
   useEffect(() => {
     if (lastMessageRef.current) {
       if (isAtBottom) {
-        lastMessageRef.current.scrollIntoView({ behavior: 'smooth' });
+        lastMessageRef.current.scrollIntoView({ behavior: 'auto' });
       }
     }
   }, [messages.length]);
@@ -536,6 +537,7 @@ useEffect(() => {
           {/* message section -->  */}
 
           <MessageSecCS
+            isMessagesLoading={isMessagesLoading}
             accessMessage={accessMessage}
             messages={messages}
             selectedMsgs={selectedMsgs}

@@ -6,8 +6,9 @@ import { useSelector } from 'react-redux';
 import { useRef } from 'react';
 import StatusCheck from '../utils/StatusCheck';
 import { isToday, isYesterday, format } from "date-fns";
-import { jwtDecode } from 'jwt-decode';
 import userId from '../utils/UserId';
+import MessageSkeleton from './MessageSkeleton';
+
 
 function MessageSecCS({
     messages,
@@ -20,15 +21,14 @@ function MessageSecCS({
     handleDelSelCard,
     handleSingleMsgDeletion,
     handleMessageSelect,
-    accessMessage
+    accessMessage,
+    isMessagesLoading
 }) {
 
     const chatContainerRef = useRef(null);
 
     const currentChatRoom = useSelector((state) => state.chatRoom.currentChatRoom);
-    // const token = localStorage.getItem('token');
-    // const decodedToken = jwtDecode(token);
-    // const userId = decodedToken.userId;
+    
 
     const getDateLabel = (date) => {
         if (isToday(date)) return 'Today';
@@ -62,7 +62,14 @@ function MessageSecCS({
                 onScroll={handleScroll}
                 className=' h-[83%] bg-white overflow-y-scroll  scrollbar-thin scrollbar-thumb-white scrollbar-track-white rounded-r-xl p-4  flex flex-col gap-0.5'
             >
-                {messages.map((message, index) => {
+                
+             { isMessagesLoading ? 
+
+               (<MessageSkeleton count={9}  />)
+                     
+                :
+                  
+                (messages.map((message, index) => {
 
                     const currentDate = new Date(message.createdAt);
                     const prevMsg = messages[index - 1];
@@ -180,8 +187,12 @@ function MessageSecCS({
                             ) : null}
                         </React.Fragment>
                     );
-                })}
+                })
+            )
+
+            }
             </div>
+
         </>
     )
 }
