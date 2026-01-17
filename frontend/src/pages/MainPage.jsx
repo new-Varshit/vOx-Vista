@@ -18,6 +18,7 @@ import { jwtDecode } from "jwt-decode";
 import { useSelector } from "react-redux";
 import { current } from '@reduxjs/toolkit';
 import userId from '../utils/UserId';
+import ProfileSkeleton from '../Components/ProfileSkeleton';
 
 
 
@@ -49,10 +50,17 @@ function MainPage() {
     const [isConfirmExitGrp, setIsConfirmExitGrp] = useState(false);
     const [accessMessage, setAccessMessage] = useState('');
     const [isConfirmDltGrp, setIsConfirmDltGrp] = useState(false);
+    const [isProChatListLoading, setIsProChatListLoading] = useState(true);
 
     // const token = localStorage.getItem("token");
     // const decodedToken = jwtDecode(token);
     // const userId = decodedToken.userId;
+
+    
+
+    const fetchChatRoomsRef = useRef(null);
+
+
 
     const currentChatRoom = useSelector(
         (state) => state.chatRoom.currentChatRoom
@@ -138,9 +146,9 @@ function MainPage() {
         };
 
 
-        const handleGlobalDeliveredUI =  ({ messageId, senderId, deliveredtoId }) => {
+        const handleGlobalDeliveredUI = ({ messageId, senderId, deliveredtoId }) => {
             console.log('inside msgsDelivered event');
-              
+
 
             if (senderId !== userId) return;
 
@@ -359,24 +367,24 @@ function MainPage() {
                 console.log(err);
             }
         };
-           
-     const handleGrpDeletion = ({chatRoomId,message}) => {
-        try{
-              setActiveChatRooms(prev => prev.filter(room => room._id !== chatRoomId))
-             if(currentChatRoomRef.current._id !== chatRoomId)return;
-              dispatch(setCurrentChatRoom({
-                   ...currentChatRoomRef.current,
-                   isAllowed : false
-              }))
-              setAccessMessage(message);
-             
-        }catch(err){
-            console.log(err);
+
+        const handleGrpDeletion = ({ chatRoomId, message }) => {
+            try {
+                setActiveChatRooms(prev => prev.filter(room => room._id !== chatRoomId))
+                if (currentChatRoomRef.current._id !== chatRoomId) return;
+                dispatch(setCurrentChatRoom({
+                    ...currentChatRoomRef.current,
+                    isAllowed: false
+                }))
+                setAccessMessage(message);
+
+            } catch (err) {
+                console.log(err);
+            }
         }
-     }
 
 
-        socket.on("grpDeleted",handleGrpDeletion);
+        socket.on("grpDeleted", handleGrpDeletion);
         socket.on("exitGrp", handleYouExitGrp);
         socket.on("memberExitGrp", handleMemberExitGrp);
         socket.on("removedFromGrp", handleRemovalFromGrp);
@@ -391,7 +399,7 @@ function MainPage() {
         socket.on("receiveMessage", handleGlobalDelivery);
         socket.on("msgDelivered", handleGlobalDeliveredUI);
         return () => {
-            socket.off("grpDeleted",handleGrpDeletion);
+            socket.off("grpDeleted", handleGrpDeletion);
             socket.off("exitGrp", handleYouExitGrp);
             socket.off("memberExitGrp", handleMemberExitGrp);
             socket.off("removedFromGrp", handleRemovalFromGrp);
@@ -407,7 +415,6 @@ function MainPage() {
             socket.off("msgDelivered", handleGlobalDeliveredUI);
         }
     }, []);
-
 
 
 
@@ -432,12 +439,15 @@ function MainPage() {
     }
 
 
-    useEffect(() => {
+
         const checkSession = async () => {
             try {
-                const response = await api.get('/api/auth/check-session', {
-                    withCredentials: true
-                })
+                
+                const response = await
+
+                    api.get('/api/auth/check-session', {
+                        withCredentials: true
+                    })
                 console.log('Session check response:', response);
 
                 if (response.data.success) {
@@ -448,14 +458,31 @@ function MainPage() {
                     dispatch(logOut());
                     navigate('/login');
                 }
+               
             } catch (err) {
                 console.log(err);
                 dispatch(logOut());
                 navigate('/login');
             }
         }
-        checkSession();
-    }, [])
+   
+
+
+    useEffect(() => {
+        const loadAll = async () => {
+            const start = Date.now();
+
+            await Promise.all([
+                checkSession(),
+                fetchChatRoomsRef.current?.(), // call child's function
+            ]);
+
+            setIsProChatListLoading(false);
+        };
+
+        loadAll();
+    }, []);
+
 
     const deleteSelectedMsg = async () => {
         try {
@@ -653,64 +680,87 @@ function MainPage() {
     }
 
     const handleDeleteGrp = async () => {
-        try{
-           const res = await api.post('/api/chatRoom/deleteGrp',{
-                chatRoomId : currentChatRoomRef.current._id
-            },{
-                withCredentials:true
+        try {
+            const res = await api.post('/api/chatRoom/deleteGrp', {
+                chatRoomId: currentChatRoomRef.current._id
+            }, {
+                withCredentials: true
             })
-            if(res.data.success){
+            if (res.data.success) {
                 setIsConfirmDltGrp(false);
                 setIsSideProfileCard(false);
             }
-        }catch(err){
+        } catch (err) {
             console.log(err);
         }
     }
 
+    
+
+
     return (
         <>
             <div className='h-screen flex'>
-                <div className='flex flex-col w-1/4 '>
+                <div className='  flex flex-col w-1/4 '>
 
-                    <div className='p-5 bg-gray-200 flex flex-col gap-5 m-2 rounded-tl-2xl '>
+                    <div className="m-2 relative">
+                        <div className={`transition-opacity duration-300 ${isProChatListLoading ? "opacity-0" : "opacity-100"
+                            }  p-5 bg-gray-200 flex flex-col gap-5 rounded-tl-2xl`}
+                        >
+                            {/* REAL PROFILE STRUCTURE ALWAYS EXISTS */}
+                            <p className="font-bold text-blue-800 text-2xl text-center font-serif">vox-Vista</p>
 
-                        <p className='font-bold text-blue-800 text-2xl text-center font-serif'>vox-Vista</p>
+                            <div className="flex justify-between">
+                                <div className="flex gap-4 justify-start items-center">
+                                    <div className="w-[72px] h-[72px] rounded-full overflow-hidden border-2 border-gray-300 shadow-md flex-shrink-0">
 
+                                        {profileData?.profile?.profilePic && (
+                                            <img
+                                                src={profileData.profile.profilePic}
+                                                alt="Profile"
+                                                className="w-full h-full object-cover rounded-full"
+                                            />
+                                        )}
+                                    </div>
 
-
-                        <div className='flex justify-between'>
-                            <div className='flex gap-4 justify-start items-center'>
-                                <div className="w-1/5 aspect-square rounded-full overflow-hidden border-2 border-gray-300 shadow-md">
-                                    {profileData?.profile?.profilePic && (
-                                        <img
-                                            src={profileData.profile.profilePic}
-                                            alt="Profile"
-                                            className="w-full h-full object-cover rounded-full transition-transform duration-300 hover:scale-105"
-                                        />
-                                    )}
+                                    <div>
+                                        <p className="text-anotherPrimary font-bold">
+                                            {profileData?.userName || "\u00A0"}
+                                        </p>
+                                        <p className="text-font text-sm">
+                                            {profileData?.email || "\u00A0"}
+                                        </p>
+                                    </div>
                                 </div>
 
-                                <div>
-                                    <p className=' text-anotherPrimary  font-bold'>{profileData.userName}</p>
-                                    <p className='text-font text-sm'>{profileData.email}</p>
+                                <div onClick={profileCardToggle}>
+                                    <svg className="w-5 mt-2" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+                                        <path d="M441 58.9L453.1 71c9.4 9.4 9.4 24.6 0 33.9L424 134.1 377.9 88 407 58.9c9.4-9.4 24.6-9.4 33.9 0zM209.8 256.2L344 121.9 390.1 168 255.8 302.2c-2.9 2.9-6.5 5-10.4 6.1l-58.5 16.7 16.7-58.5c1.1-3.9 3.2-7.5 6.1-10.4zM373.1 25L175.8 222.2c-8.7 8.7-15 19.4-18.3 31.1l-28.6 100c-2.4 8.4-.1 17.4 6.1 23.6s15.2 8.5 23.6 6.1l100-28.6c11.8-3.4 22.5-9.7 31.1-18.3L487 138.9c28.1-28.1 28.1-73.7 0-101.8L474.9 25C446.8-3.1 401.2-3.1 373.1 25zM88 64C39.4 64 0 103.4 0 152L0 424c0 48.6 39.4 88 88 88l272 0c48.6 0 88-39.4 88-88l0-112c0-13.3-10.7-24-24-24s-24 10.7-24 24l0 112c0 22.1-17.9 40-40 40L88 464c-22.1 0-40-17.9-40-40l0-272c0-22.1 17.9-40 40-40l112 0c13.3 0 24-10.7 24-24s-10.7-24-24-24L88 64z" />
+                                    </svg>
                                 </div>
                             </div>
-                            <div onClick={profileCardToggle} >
-                                <svg className='w-5 mt-2' xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><path d="M441 58.9L453.1 71c9.4 9.4 9.4 24.6 0 33.9L424 134.1 377.9 88 407 58.9c9.4-9.4 24.6-9.4 33.9 0zM209.8 256.2L344 121.9 390.1 168 255.8 302.2c-2.9 2.9-6.5 5-10.4 6.1l-58.5 16.7 16.7-58.5c1.1-3.9 3.2-7.5 6.1-10.4zM373.1 25L175.8 222.2c-8.7 8.7-15 19.4-18.3 31.1l-28.6 100c-2.4 8.4-.1 17.4 6.1 23.6s15.2 8.5 23.6 6.1l100-28.6c11.8-3.4 22.5-9.7 31.1-18.3L487 138.9c28.1-28.1 28.1-73.7 0-101.8L474.9 25C446.8-3.1 401.2-3.1 373.1 25zM88 64C39.4 64 0 103.4 0 152L0 424c0 48.6 39.4 88 88 88l272 0c48.6 0 88-39.4 88-88l0-112c0-13.3-10.7-24-24-24s-24 10.7-24 24l0 112c0 22.1-17.9 40-40 40L88 464c-22.1 0-40-17.9-40-40l0-272c0-22.1 17.9-40 40-40l112 0c13.3 0 24-10.7 24-24s-10.7-24-24-24L88 64z" /></svg>
+
+                            <div className="flex justify-evenly">
+                                <button className="bg-anotherPrimary rounded-md text-sm font-semibold py-1 text-white w-2/5">
+                                    Delete
+                                </button>
+                                <button onClick={userLoggedOut} className="bg-anotherPrimary rounded-md text-sm font-semibold py-1 text-white w-2/5">
+                                    Logout
+                                </button>
                             </div>
                         </div>
 
-
-                        <div className='flex justify-evenly'>
-                            <button className='bg-anotherPrimary rounded-md text-sm font-semibold py-1 text-white w-2/5'>Delete</button>
-                            <button className='bg-anotherPrimary rounded-md text-sm  font-semibold py-1 text-white w-2/5' onClick={userLoggedOut}>logout</button>
-                        </div>
-
+                        {isProChatListLoading && (
+                            <div className={`  absolute inset-0 z-10 transition-opacity duration-300 ${isProChatListLoading ? "opacity-100" : "opacity-0 pointer-events-none"
+                                }`}>
+                                <ProfileSkeleton />
+                            </div>
+                        )}
                     </div>
 
+
                     <div className='flex-1 overflow-auto bg-gray-200 m-2 rounded-bl-2xl mt-0'>
-                        <ChatListing newChatCard={newChatCard} setActiveChatRooms={setActiveChatRooms} activeChatRooms={activeChatRooms} />
+                        <ChatListing registerFetch={fetchChatRoomsRef}  isProChatListLoading={isProChatListLoading} setIsProChatListLoading={setIsProChatListLoading} newChatCard={newChatCard} setActiveChatRooms={setActiveChatRooms} activeChatRooms={activeChatRooms} />
                     </div>
                 </div>
 
@@ -735,7 +785,7 @@ function MainPage() {
 
 
                 {isSideProfileCard &&
-                    <SideProfileSection setIsSearchNewMember={setIsSearchNewMember} setIsGroupInfoCardVisible={setIsGroupInfoCardVisible} setSelectedMember={setSelectedMember} setIsConfirmMemRemoval={setIsConfirmMemRemoval} setIsConfirmExitGrp={setIsConfirmExitGrp} setIsConfirmDltGrp={setIsConfirmDltGrp}/>
+                    <SideProfileSection setIsSearchNewMember={setIsSearchNewMember} setIsGroupInfoCardVisible={setIsGroupInfoCardVisible} setSelectedMember={setSelectedMember} setIsConfirmMemRemoval={setIsConfirmMemRemoval} setIsConfirmExitGrp={setIsConfirmExitGrp} setIsConfirmDltGrp={setIsConfirmDltGrp} />
                 }
 
                 {isProfileCardVisible &&
@@ -991,13 +1041,13 @@ function MainPage() {
                             </h3>
 
                             <p className="text-sm text-gray-700 text-center">
-                                Are you sure you want to delete this group ? 
+                                Are you sure you want to delete this group ?
                             </p>
 
                             <div className="flex justify-center gap-3 pt-2">
                                 <button
                                     className="px-4 py-1 rounded-md border border-anotherPrimary text-anotherPrimary"
-                                    onClick={()=>setIsConfirmDltGrp(false)}
+                                    onClick={() => setIsConfirmDltGrp(false)}
                                 >
                                     Cancel
                                 </button>
