@@ -61,7 +61,7 @@ export const sendMessage = async (req, res) => {
     });
 
     let chatRoom = await ChatRoom.findById(chatRoomId).populate("members");
-       
+
     const isFirstMessage = !chatRoom.hasMessage && !chatRoom.isGroupChat;
 
     await ChatRoom.findByIdAndUpdate(chatRoomId, {
@@ -72,16 +72,16 @@ export const sendMessage = async (req, res) => {
       }
     });
 
-    if(isFirstMessage){
+    if (isFirstMessage) {
       const receiver = chatRoom.members.find(
         m => m._id.toString() !== senderId.toString()
       );
-    
+
       chatRoom = {
         ...chatRoom.toObject(),
         receiver,
-        lastMessage:message,
-        unreadMsgs:0
+        lastMessage: message,
+        unreadMsgs: 0
       }
       io.to(receiver._id.toString()).emit("newChatRoom", {
         chatRoom
@@ -90,7 +90,7 @@ export const sendMessage = async (req, res) => {
 
     //  console.log('message: ' , message);
     const populatedMessage = (await message.populate(['sender', 'chatRoom']));
-       
+
     res.status(200).json({ success: true, message: populatedMessage });
   } catch (err) {
     console.log('Message creation error:', err);
@@ -126,7 +126,7 @@ export const getMessagesByChatRoom = async (req, res) => {
 }
 
 
-// updating message status to delivered 
+// // updating message status to delivered 
 
 export const updateMsgToDelivered = async (req, res) => {
   const messageId = req.params.msgId;
@@ -189,7 +189,7 @@ export const updateAllMsgsToDelivered = async (req, res) => {
 
 
 
-// updating message status to read 
+// // updating message status to read 
 
 export const updateMsgToRead = async (req, res) => {
   const msgId = req.params.msgId;
@@ -213,7 +213,7 @@ export const updateMsgToRead = async (req, res) => {
 
 
 
-// helping function, getting all the chatrooms in which the user is a member 
+// // helping function, getting all the chatrooms in which the user is a member 
 
 const getChatRoomsForUser = async (userId) => {
   const chatRooms = await ChatRoom.find({
@@ -227,64 +227,102 @@ const getChatRoomsForUser = async (userId) => {
 
 
 
-
-
-
 export const deleteSelectedMsgs = async (req, res) => {
   const userId = req.id.userId;
   const { selectedMsgs } = req.body;
 
+  if (!Array.isArray(selectedMsgs) || selectedMsgs.length === 0) {
+    return res.status(400).json({ success: false, message: "No messages selected" });
+  }
+
+  // Validate IDs (convert to ObjectId if needed)
+  const mongoose = require('mongoose');
+  const ObjectId = mongoose.Types.ObjectId;
+  const validIds = selectedMsgs
+    .map(id => {
+      try { return ObjectId(id); } catch (e) { return null; }
+    })
+    .filter(Boolean);
+
+  if (validIds.length !== selectedMsgs.length) {
+    return res.status(400).json({ success: false, message: "Invalid message IDs provided" });
+  }
+
   try {
-    // 1. Add the userId to the deletedFor array
+    // Ensure all selected messages belong to same chatRoom OR handle grouping
+    const messages = await Message.find({ _id: { $in: validIds } }).select('chatRoom attachments deletedFor sender');
+    if (messages.length === 0) {
+      return res.status(404).json({ success: false, message: "No messages found" });
+    }
+
+    // Ensure all messages belong to same chatRoom (choose policy)
+    const chatRoomIds = Array.from(new Set(messages.map(m => String(m.chatRoom))));
+    if (chatRoomIds.length > 1) {
+      // Option A: reject and force caller to delete per-chat
+      return res.status(400).json({ success: false, message: "Selected messages belong to multiple chat rooms. Delete per chat." });
+      // Option B: continue but group by chatRoom and process each group separately (more work)
+    }
+
+    const chatRoomId = chatRoomIds[0];
+    const chatRoom = await ChatRoom.findById(chatRoomId).select('members');
+    if (!chatRoom) {
+      return res.status(404).json({ success: false, message: "Chat room not found" });
+    }
+
+    // Permission: ensure requesting user is member of the chat room
+    if (!chatRoom.members.map(m => String(m)).includes(String(userId))) {
+      return res.status(403).json({ success: false, message: "Not authorized to delete messages in this chat" });
+    }
+
+    const memberCount = chatRoom.members.length;
+
+    // 1) Add the userId to deletedFor array for the selected messages
     await Message.updateMany(
-      { _id: { $in: selectedMsgs } },  // Find all messages with the given IDs
-      { $addToSet: { deletedFor: userId } } // Add userId to deletedFor array, avoiding duplicates
+      { _id: { $in: validIds } },
+      { $addToSet: { deletedFor: ObjectId(userId) } }
     );
 
-    // 2. Find messages where both users have marked it for deletion
-    const msgs = await Message.find({
-      _id: { $in: selectedMsgs },
-      $expr: {
-        $and: [
-          { $eq: [{ $size: "$deletedFor" }, 2] },  // Ensures deletedFor has exactly 2 elements
-          { $in: [userId, "$deletedFor"] }         // Ensures userId is in the deletedFor array
-        ]
-      }
-    });
+    // 2) Find messages where deletedFor size >= memberCount (ready to be permanently removed)
+    // Use $expr with $gte so it works for groups and respects memberCount
+    const msgsToPermanentlyDelete = await Message.find({
+      _id: { $in: validIds },
+      $expr: { $gte: [ { $size: "$deletedFor" }, memberCount ] }
+    }).lean();
 
-    // 3. Delete attachments from Cloudinary
-    for (const msg of msgs) {
-      if (msg.attachments && msg.attachments.length > 0) {
-        const deletePromises = msg.attachments.map(attachment => {
-          return cloudinary.uploader.destroy(attachment.public_id);
-        });
-        // Await the completion of all deletion promises
-        await Promise.all(deletePromises);
+    // 3) Delete attachments from Cloudinary and collect IDs actually removed
+    const permanentlyDeletedIds = [];
+    for (const msg of msgsToPermanentlyDelete) {
+      try {
+        if (msg.attachments && msg.attachments.length > 0) {
+          const deletePromises = msg.attachments
+            .map(att => att.public_id ? cloudinary.uploader.destroy(att.public_id) : Promise.resolve(null));
+          await Promise.all(deletePromises);
+        }
+        // 4) Delete the message from DB
+        await Message.findByIdAndDelete(msg._id);
+        permanentlyDeletedIds.push(String(msg._id));
+      } catch (err) {
+        // Log and continue with others; do not abort entire operation
+        console.error(`Failed to permanently delete message ${msg._id}:`, err);
       }
     }
 
-    // 4. Delete messages from the database after Cloudinary cleanup
-    await Message.deleteMany({
-      _id: { $in: selectedMsgs },
-      $expr: {
-        $and: [
-          { $eq: [{ $size: "$deletedFor" }, 2] },  // Ensures deletedFor has exactly 2 elements
-          { $in: [userId, "$deletedFor"] }         // Ensures userId is in the deletedFor array
-        ]
-      }
-    });
+    // // 5) Emit "messageDeleted" for messages permanently removed so clients can remove them from UI
+    // if (permanentlyDeletedIds.length > 0) {
+    //   io.to(String(chatRoomId)).emit("messageDeleted", { messageIds: permanentlyDeletedIds, chatRoomId });
+    //   // Alternatively use per-recipient emit helper if you want personal room delivery
+    // }
 
+    // 6) Return a detailed response
     return res.status(200).json({
       success: true,
-      message: "Messages successfully updated for deletion"
+      message: "Messages updated for deletion",
+      // markedDeletedFor: validIds.map(id => String(id)),
+      // permanentlyDeleted: permanentlyDeletedIds
     });
   } catch (err) {
-    console.log(err);
-    return res.status(500).json({
-      success: false,
-      message: 'Error deleting messages',
-      err
-    });
+    console.error('Error deleting selected messages:', err);
+    return res.status(500).json({ success: false, message: 'Error deleting messages', err: err.message });
   }
 };
 
@@ -301,10 +339,9 @@ export const deleteSelectedMsgs = async (req, res) => {
 
 export const deleteMsgForEveryone = async (req, res) => {
   const msgId = req.params.msgId;
+
   try {
-    // Find the message by its ID
     const msg = await Message.findById(msgId);
-    const chatRoomId = msg.chatRoom;
     if (!msg) {
       return res.status(404).json({
         success: false,
@@ -312,34 +349,34 @@ export const deleteMsgForEveryone = async (req, res) => {
       });
     }
 
-    // Delete attachments from Cloudinary if any
-    if (msg.attachments && msg.attachments.length > 0) {
-      const deletePromises = msg.attachments.map(attachment => {
-        return cloudinary.uploader.destroy(attachment.public_id);
-      });
+    const chatRoomId = msg.chatRoom;
 
-      // Use Promise.all to delete all attachments concurrently
-      const results = await Promise.all(deletePromises);
-      // console.log('Deletion results:', results); // This will log the results of the deletion
+    // Delete attachments from Cloudinary
+    if (msg.attachments?.length) {
+      await Promise.all(
+        msg.attachments.map(att =>
+          att.public_id ? cloudinary.uploader.destroy(att.public_id) : null
+        )
+      );
     }
 
-    // Delete the message from the database
     await Message.findByIdAndDelete(msgId);
 
-    io.to(chatRoomId).emit("messageDeleted", {
+    io.to(String(chatRoomId)).emit("messageDeleted", {
       messageId: msgId,
       chatRoomId
     });
 
     return res.status(200).json({
       success: true,
-      message: "Message has been deleted permanently for everyone"
+      message: "Message deleted for everyone"
     });
+
   } catch (err) {
-    console.error('Error deleting message or attachments:', err);
+    console.error(err);
     return res.status(500).json({
       success: false,
-      message: "Error deleting message or attachments",
+      message: "Error deleting message",
       error: err.message
     });
   }
@@ -349,66 +386,62 @@ export const deleteMsgForEveryone = async (req, res) => {
 
 
 
-//deleting all the messges of a chatroom  for a the user only 
 
+//deleting all the messges of a chatroom  for a the user only 
 export const clrChatRoomMsgs = async (req, res) => {
   const userId = req.id.userId;
   const { chatRoomId } = req.params;
 
   try {
-    const result = await Message.updateMany({ chatRoom: chatRoomId, deletedFor: { $ne: userId } }, { $addToSet: { deletedFor: userId } });
+    const chatRoom = await ChatRoom.findById(chatRoomId).select("members");
+    if (!chatRoom) {
+      return res.status(404).json({
+        success: false,
+        message: "Chat room not found"
+      });
+    }
 
-    //  Find messages where both users have marked it for deletion
-    const msgs = await Message.find({
-      _id: { $in: selectedMsgs },
-      $expr: {
-        $and: [
-          { $eq: [{ $size: "$deletedFor" }, 2] },  // Ensures deletedFor has exactly 2 elements
-          { $in: [userId, "$deletedFor"] }         // Ensures userId is in the deletedFor array
-        ]
-      }
+    const memberCount = chatRoom.members.length;
+
+    // 1️⃣ Mark all messages in this room as deleted for this user
+    await Message.updateMany(
+      { chatRoom: chatRoomId },
+      { $addToSet: { deletedFor: userId } }
+    );
+
+    // 2️⃣ Find messages that everyone has deleted
+    const msgsToDelete = await Message.find({
+      chatRoom: chatRoomId,
+      $expr: { $gte: [{ $size: "$deletedFor" }, memberCount] }
     });
 
-    //  Delete attachments from Cloudinary
-    for (const msg of msgs) {
-      if (msg.attachments && msg.attachments.length > 0) {
-        const deletePromises = msg.attachments.map(attachment => {
-          return cloudinary.uploader.destroy(attachment.public_id);
-        });
-        // Await the completion of all deletion promises
-        await Promise.all(deletePromises);
+    // 3️⃣ Delete attachments
+    for (const msg of msgsToDelete) {
+      if (msg.attachments?.length) {
+        await Promise.all(
+          msg.attachments.map(att =>
+            att.public_id ? cloudinary.uploader.destroy(att.public_id) : null
+          )
+        );
       }
     }
 
-
+    // 4️⃣ Permanently remove those messages
     await Message.deleteMany({
       chatRoom: chatRoomId,
-      $expr: {
-        $and: [
-          { $eq: [{ $size: "$deletedFor" }, 2] },  // Ensures deletedFor has exactly 2 elements
-          { $in: [userId, "$deletedFor"] }         // Ensures userId is in the deletedFor array
-        ]
-      }
+      $expr: { $gte: [{ $size: "$deletedFor" }, memberCount] }
     });
 
-    if (result.modifiedCount > 0) {
-      return res.status(200).json({
-        message: 'Successfully cleared all messages from the chat',
-        success: true
-      });
-    } else {
-      return res.status(204).json({
-        message: 'No messages to clear from the chat',
-        success: true
-      });
-    }
+    return res.status(200).json({
+      success: true,
+      message: "Chat cleared for you"
+    });
 
   } catch (err) {
-    console.log(err);
+    console.error(err);
     return res.status(500).json({
-      message: 'internal server error',
-      success: false
-    })
+      success: false,
+      message: "Internal server error"
+    });
   }
-}
-
+};
