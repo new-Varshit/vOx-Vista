@@ -5,6 +5,7 @@ import { faCheck, faCheckDouble } from '@fortawesome/free-solid-svg-icons';
 
 
 function StatusCheck({ userId, deliveredTo = [], readBy = [], currentChatRoom }) {
+        //  console.log(userId , deliveredTo , readBy , currentChatRoom);
   if (!currentChatRoom?.members?.length) return null;
 
   const norm = (v) => v?.toString?.();
@@ -13,6 +14,8 @@ function StatusCheck({ userId, deliveredTo = [], readBy = [], currentChatRoom })
     .map(mem => norm(mem?._id ?? mem))   // supports both object and string
     .filter(id => id && id !== norm(userId));
 
+    // console.log('other Members' , otherMembers);
+
   const readSet = (readBy || []).map(norm);
   const deliveredSet = (deliveredTo || []).map(norm);
 
@@ -20,6 +23,8 @@ function StatusCheck({ userId, deliveredTo = [], readBy = [], currentChatRoom })
 
   const allRead = otherMembers.every(id => readSet.includes(id));
   const allDelivered = otherMembers.every(id => deliveredSet.includes(id));
+
+      //  console.log('all delivered' , allDelivered);
 
   if (allRead) {
     return <FontAwesomeIcon icon={faCheckDouble} className="text-cyan-400 text-xs" />;

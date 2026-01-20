@@ -131,10 +131,10 @@ function profileCard({ profileCardToggle, profileData: initialProfileData }) {
 
                         {loading ? (
                             <div className='m-4 py-1 text-base w-1/4 font-semibold bg-anotherPrimary rounded-md text-white'>
-                                <div className="loader w-full text-center">Loading...</div>
+                                <div className="loader w-full text-center">Updating...</div>
                             </div>
                         ) : (
-                            <button type='submit' className=' m-4 py-1  text-base w-1/4 font-semibold bg-anotherPrimary rounded-md text-white'>Update</button>
+                            <button disabled={loading} type='submit' className=' m-4 py-1  text-base w-1/4 font-semibold bg-anotherPrimary rounded-md text-white'>Update</button>
                         )}
                     </form>
                 </div>

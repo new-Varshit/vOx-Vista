@@ -14,7 +14,8 @@ import {
 import { useSelector } from 'react-redux';
 import { jwtDecode } from 'jwt-decode';
 import api from '../utils/Api';
-import userId from '../utils/UserId';
+import  { getUserId } from '../utils/UserId';
+
 
 function SideProfileSection({setIsSearchNewMember,setIsGroupInfoCardVisible,setIsConfirmMemRemoval ,setSelectedMember , setIsConfirmExitGrp , setIsConfirmDltGrp}) {
   const currentChat = useSelector((state) => state.chat.currentChat);
@@ -24,10 +25,11 @@ function SideProfileSection({setIsSearchNewMember,setIsGroupInfoCardVisible,setI
   // const decodedToken = jwtDecode(token);
   // const userId = decodedToken.userId;
 
+  const userId = getUserId
+
   const isAdmin = currentChatRoom?.admin === userId;
 
  
-
   
 
   return (

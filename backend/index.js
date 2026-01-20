@@ -51,8 +51,13 @@ io.on('connection', async (socket) => {
     onlineUsers.add(userId);
     io.emit('update-online-status', Array.from(onlineUsers));
 
+    const rooms = await ChatRoom.find({ members: userId }, { _id: 1 });
+            //  console.log('rooms',rooms);
+    const roomIds = rooms.map(room => room._id);
+            //   console.log('roomIds',roomIds);
     const result = await Message.updateMany(
         {
+            chatRoom: { $in: roomIds },
             sender: { $ne: userId },          // not sent by me
             deliveredTo: { $ne: userId }      // not delivered to me yet
         },
@@ -60,14 +65,17 @@ io.on('connection', async (socket) => {
             $addToSet: { deliveredTo: userId }
         }
     );
-
+    // console.log('yo hue ', userId);
+    // console.log(result.modifiedCount, userId);
     if (result.modifiedCount > 0) {
         const affectedChatRooms = await Message.distinct("chatRoom", {
             deliveredTo: userId,
             sender: { $ne: userId }
         });
 
+        // console.log('emitting msgDeliveredBulk')
         affectedChatRooms.forEach(chatRoomId => {
+            // console.log(chatRoomId);
             io.to(chatRoomId.toString()).emit("msgDeliveredBulk", {
                 deliveredtoId: userId
             });

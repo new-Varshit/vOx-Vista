@@ -7,7 +7,8 @@ import MessageSecCS from './MessageSecCS';
 import InputAreaCS from './InputAreaCS';
 import HeaderSecCS from './HeaderSecCS';
 import { jwtDecode } from 'jwt-decode';
-import userId from '../utils/UserId';
+// import userId from '../utils/UserId';
+import { getUserId } from '../utils/UserId';
 // import useChatSocket from '../hooks/useChatSocket';
 
 
@@ -33,6 +34,10 @@ function ChatSection({
   const targetLanguage = useSelector((state) => state.lng.targetLanguage);
   const currentChatRoomRef = useRef(null);
   const [isMessagesLoading, setIsMessagesLoading] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(null);
+  const [firstUnreadId, setFirstUnreadId] = useState(null);
+
+  const userId = getUserId();
 
 
   useEffect(() => {
@@ -124,6 +129,7 @@ function ChatSection({
   //references we are using 
   const typingTimeoutRef = useRef(null);
   const lastMessageRef = useRef(null);
+  const firstUnreadRef = useRef(null);
   // const socket = useRef(null);
 
 
@@ -186,60 +192,60 @@ function ChatSection({
   }, [currentChatRoom, messages, userId]);
 
 
-useEffect(() => {
-  const socket = socketRef.current;
-  if (!socket) return;
+  useEffect(() => {
+    const socket = socketRef.current;
+    if (!socket) return;
 
-  // Keep a stable reference to your receive handler (already defined via useCallback)
-  const onReceiveMessage = handleReceiveMessage;
+    // Keep a stable reference to your receive handler (already defined via useCallback)
+    const onReceiveMessage = handleReceiveMessage;
 
-  const onDisplayTyping = (uid) => {
-    setTypingUsers(prev => (prev.includes(String(uid)) ? prev : [...prev, String(uid)]));
-  };
+    const onDisplayTyping = (uid) => {
+      setTypingUsers(prev => (prev.includes(String(uid)) ? prev : [...prev, String(uid)]));
+    };
 
-  const onRemoveTyping = (uid) => {
-    setTypingUsers(prev => prev.filter(id => id !== String(uid)));
-  };
+    const onRemoveTyping = (uid) => {
+      setTypingUsers(prev => prev.filter(id => id !== String(uid)));
+    };
 
-  const onMsgsRead = ({ chatRoomId, readerId }) => {
-    if (String(chatRoomId) !== String(currentChatRoom?._id)) return; // scope to active room
-    setMessages(prev => prev.map(msg => {
-      if (String(msg.sender._id) === String(readerId)) return msg;
-      if ((msg.readBy || []).map(String).includes(String(readerId))) return msg;
-      return { ...msg, readBy: [...(msg.readBy || []), String(readerId)] };
-    }));
-  };
+    const onMsgsRead = ({ chatRoomId, readerId }) => {
+      if (String(chatRoomId) !== String(currentChatRoom?._id)) return; // scope to active room
+      setMessages(prev => prev.map(msg => {
+        if (String(msg.sender._id) === String(readerId)) return msg;
+        if ((msg.readBy || []).map(String).includes(String(readerId))) return msg;
+        return { ...msg, readBy: [...(msg.readBy || []), String(readerId)] };
+      }));
+    };
 
-  const onMessageDeleted = ({ messageId, chatRoomId }) => {
-    if (chatRoomId && String(chatRoomId) !== String(currentChatRoom?._id)) return;
-    // Some server sends just messageId — handle both shapes
-    const id = messageId || (typeof messageId === 'string' ? messageId : null);
-    if (!id) return;
-    setMessages(prev => prev.filter(msg => String(msg._id) !== String(id)));
-  };
+    const onMessageDeleted = ({ messageId, chatRoomId }) => {
+      if (chatRoomId && String(chatRoomId) !== String(currentChatRoom?._id)) return;
+      // Some server sends just messageId — handle both shapes
+      const id = messageId || (typeof messageId === 'string' ? messageId : null);
+      if (!id) return;
+      setMessages(prev => prev.filter(msg => String(msg._id) !== String(id)));
+    };
 
-  const onUpdateOnlineStatus = (users) => {
-    setOnlineUsers(users || []);
-  };
+    const onUpdateOnlineStatus = (users) => {
+      setOnlineUsers(users || []);
+    };
 
-  // Register handlers
-  socket.on("receiveMessage", onReceiveMessage);
-  socket.on("displayTyping", onDisplayTyping);
-  socket.on("removeTyping", onRemoveTyping);
-  socket.on("msgsRead", onMsgsRead);
-  socket.on("messageDeleted", onMessageDeleted);
-  socket.on("update-online-status", onUpdateOnlineStatus);
+    // Register handlers
+    socket.on("receiveMessage", onReceiveMessage);
+    socket.on("displayTyping", onDisplayTyping);
+    socket.on("removeTyping", onRemoveTyping);
+    socket.on("msgsRead", onMsgsRead);
+    socket.on("messageDeleted", onMessageDeleted);
+    socket.on("update-online-status", onUpdateOnlineStatus);
 
-  // Cleanup using the same function references
-  return () => {
-    socket.off("receiveMessage", onReceiveMessage);
-    socket.off("displayTyping", onDisplayTyping);
-    socket.off("removeTyping", onRemoveTyping);
-    socket.off("msgsRead", onMsgsRead);
-    socket.off("messageDeleted", onMessageDeleted);
-    socket.off("update-online-status", onUpdateOnlineStatus);
-  };
-}, [handleReceiveMessage, currentChatRoom?._id]);
+    // Cleanup using the same function references
+    return () => {
+      socket.off("receiveMessage", onReceiveMessage);
+      socket.off("displayTyping", onDisplayTyping);
+      socket.off("removeTyping", onRemoveTyping);
+      socket.off("msgsRead", onMsgsRead);
+      socket.off("messageDeleted", onMessageDeleted);
+      socket.off("update-online-status", onUpdateOnlineStatus);
+    };
+  }, [handleReceiveMessage, currentChatRoom?._id]);
 
 
 
@@ -305,10 +311,16 @@ useEffect(() => {
         if (response.data.success) {
           const visibleMessages = response?.data?.messages.filter(msg => !msg.deletedFor.includes(userId))
           setMessages(visibleMessages);
+
+          const unread = visibleMessages.filter(m => m.sender._id !== userId && !m.readBy.includes(userId));
+
+          setUnreadCount(unread.length);
+          const firstUnread = unread[0];
+          setFirstUnreadId(firstUnread?._id || null);
         }
       } catch (err) {
         console.log(err);
-      }finally{
+      } finally {
         setIsMessagesLoading(false);
       }
     }
@@ -324,6 +336,12 @@ useEffect(() => {
       }
     }
   }, [messages.length]);
+
+  useEffect(() => {
+    if (firstUnreadRef.current) {
+      firstUnreadRef.current.scrollIntoView({ block: "center" });
+    }
+  }, [firstUnreadId]);
 
   //seding the message to the database  to store as well as to the socket.io server for dynamically sending...
   const sendInputMessage = async (e) => {
@@ -363,6 +381,9 @@ useEffect(() => {
       };
 
       setMessages(prev => [...prev, tempMessage]);
+
+      setSendMessage('');
+      setSelectedFiles([]);
 
       try {
         const response = await api.post('/api/message/sendMessage', message, {
@@ -417,8 +438,7 @@ useEffect(() => {
           }
 
           socketRef.current.emit('sendMessage', messageData);
-          setSendMessage('');
-          setSelectedFiles([]);
+
         }
       } catch (err) {
         console.log(err);
@@ -549,6 +569,9 @@ useEffect(() => {
             handleDelSelCard={handleDelSelCard}
             handleSingleMsgDeletion={handleSingleMsgDeletion}
             handleMessageSelect={handleMessageSelect}
+            unreadCount={unreadCount}
+            firstUnreadId={firstUnreadId}
+            firstUnreadRef={firstUnreadRef}
           />
 
 

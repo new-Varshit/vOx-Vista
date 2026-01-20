@@ -14,10 +14,8 @@ import { faTimes } from '@fortawesome/free-solid-svg-icons';
 import { setCurrentChat } from '../store/chatSlice';
 import { setCurrentChatRoom } from '../store/chatRoomSlice';
 import useChatSocket from "../hooks/useChatSocket";
-import { jwtDecode } from "jwt-decode";
 import { useSelector } from "react-redux";
-import { current } from '@reduxjs/toolkit';
-import userId from '../utils/UserId';
+import { getUserId } from '../utils/UserId';
 import ProfileSkeleton from '../Components/ProfileSkeleton';
 
 
@@ -51,15 +49,12 @@ function MainPage() {
     const [accessMessage, setAccessMessage] = useState('');
     const [isConfirmDltGrp, setIsConfirmDltGrp] = useState(false);
     const [isProChatListLoading, setIsProChatListLoading] = useState(true);
+    const [loadingAction , setLoadingAction] = useState(null);
 
-    // const token = localStorage.getItem("token");
-    // const decodedToken = jwtDecode(token);
-    // const userId = decodedToken.userId;
-
-    
 
     const fetchChatRoomsRef = useRef(null);
-
+ 
+    const userId = getUserId();
 
 
     const currentChatRoom = useSelector(
@@ -74,7 +69,6 @@ function MainPage() {
         setGroupDescription(currentChatRoom?.description || "");
     }, [currentChatRoom]);
 
-
     const { socketRef, emitTyping, emitStopTyping, joinChatRoom,
         leavePersonalRoom } = useChatSocket({
             userId,
@@ -82,7 +76,7 @@ function MainPage() {
 
     useEffect(() => {
 
-        if (!socketRef) return;
+        if (!socketRef.current) return;
         const socket = socketRef.current;
 
         const handleIncrementUnread = ({ chatRoomId, message }) => {
@@ -97,20 +91,20 @@ function MainPage() {
                         ...room,
                         lastMessage: message,
                         unreadMsgs: isActive
-                            ? room.unreadMsgs || 0   // no increment
-                            : (room.unreadMsgs || 0) + 1
+                            ? room?.unreadMsgs || 0   // no increment
+                            : (room?.unreadMsgs || 0) + 1
                     };
                 })
             );
         };
         socket.on("incrementUnread", handleIncrementUnread);
         return () => socket.off("incrementUnread", handleIncrementUnread);
-    }, [socketRef]);
+    }, [socketRef.current]);
 
 
     useEffect(() => {
 
-        if (!socketRef) return;
+        if (!socketRef.current) return;
         const socket = socketRef.current;
 
         const handleGlobalDelivery = async (message) => {
@@ -176,6 +170,7 @@ function MainPage() {
         const handleBulkmsgDelivered = async ({ deliveredtoId }) => {
             console.log('hello there');
             if (deliveredtoId === userId) return;
+            console.log('hello there 2');
             try {
                 setMessages(prev =>
                     prev.map(msg => {
@@ -210,7 +205,7 @@ function MainPage() {
 
         const handleNewChatRoomAddition = ({ chatRoom }) => {
             try {
-
+                    
                 setActiveChatRooms(prev => {
                     // 🔒 prevent duplicates
                     const alreadyExists = prev.some(room => room._id === chatRoom._id);
@@ -440,32 +435,32 @@ function MainPage() {
 
 
 
-        const checkSession = async () => {
-            try {
-                
-                const response = await
+    const checkSession = async () => {
+        try {
 
-                    api.get('/api/auth/check-session', {
-                        withCredentials: true
-                    })
-                console.log('Session check response:', response);
+            const response = await
 
-                if (response.data.success) {
-                    dispatch(logIn(response.data.userId));
-                    setProfileData(response.data.profileData);
+                api.get('/api/auth/check-session', {
+                    withCredentials: true
+                })
+            console.log('Session check response:', response);
 
-                } else {
-                    dispatch(logOut());
-                    navigate('/login');
-                }
-               
-            } catch (err) {
-                console.log(err);
+            if (response.data.success) {
+                dispatch(logIn(response.data.userId));
+                setProfileData(response.data.profileData);
+
+            } else {
                 dispatch(logOut());
                 navigate('/login');
             }
+
+        } catch (err) {
+            console.log(err);
+            dispatch(logOut());
+            navigate('/login');
         }
-   
+    }
+
 
 
     useEffect(() => {
@@ -570,6 +565,7 @@ function MainPage() {
 
     const handleMemberSelection = async () => {
         try {
+            setLoadingAction('addMem');
             const memberIds = newMembers.map(m => m._id);
             await api.post('/api/chatRoom/addMembers', {
                 chatRoomId: currentChatRoom._id,
@@ -582,6 +578,8 @@ function MainPage() {
 
         } catch (err) {
             console.log(err);
+        }finally{
+            setLoadingAction(null);
         }
     }
 
@@ -610,6 +608,7 @@ function MainPage() {
 
     const handleUpdateGroupInfo = async () => {
         try {
+            setLoadingAction('UpdateGrp');
             const formData = new FormData();
             formData.append("chatRoomId", currentChatRoom._id);
             formData.append("name", groupName);
@@ -635,6 +634,8 @@ function MainPage() {
             }
         } catch (err) {
             console.log(err);
+        }finally{
+            setLoadingAction(null);
         }
     };
 
@@ -647,6 +648,7 @@ function MainPage() {
     }
     const handleRemoveMember = async () => {
         try {
+            setLoadingAction('removeMem');
             const res = await api.post(
                 '/api/chatRoom/removeMember',
                 {
@@ -661,10 +663,13 @@ function MainPage() {
             }
         } catch (err) {
             console.log(err);
+        }finally{
+            setLoadingAction(null);
         }
     };
     const handleExitGrp = async () => {
         try {
+            setLoadingAction('exitGrp');
             const res = await api.post('/api/chatRoom/exitGrp', {
                 chatRoomId: currentChatRoomRef.current._id
             }, {
@@ -676,11 +681,14 @@ function MainPage() {
             }
         } catch (err) {
             console.log(err);
+        }finally{
+            setLoadingAction(null);
         }
     }
 
     const handleDeleteGrp = async () => {
         try {
+            setLoadingAction('deleteGrp');
             const res = await api.post('/api/chatRoom/deleteGrp', {
                 chatRoomId: currentChatRoomRef.current._id
             }, {
@@ -692,10 +700,25 @@ function MainPage() {
             }
         } catch (err) {
             console.log(err);
+        }finally{
+            setLoadingAction(null);
         }
     }
 
-    
+
+    const [dots, setDots] = useState(".");
+
+    useEffect(() => {
+        if (!loadingAction) return;
+
+        const id = setInterval(() => {
+            setDots(prev => (prev.length === 3 ? "." : prev + "."));
+        }, 400);
+
+        return () => clearInterval(id);
+    }, [loadingAction]);
+
+
 
 
     return (
@@ -760,7 +783,7 @@ function MainPage() {
 
 
                     <div className='flex-1 overflow-auto bg-gray-200 m-2 rounded-bl-2xl mt-0'>
-                        <ChatListing registerFetch={fetchChatRoomsRef}  isProChatListLoading={isProChatListLoading} setIsProChatListLoading={setIsProChatListLoading} newChatCard={newChatCard} setActiveChatRooms={setActiveChatRooms} activeChatRooms={activeChatRooms} />
+                        <ChatListing registerFetch={fetchChatRoomsRef} isProChatListLoading={isProChatListLoading} setIsProChatListLoading={setIsProChatListLoading} newChatCard={newChatCard} setActiveChatRooms={setActiveChatRooms} activeChatRooms={activeChatRooms} />
                     </div>
                 </div>
 
@@ -897,12 +920,12 @@ function MainPage() {
                                         Cancel
                                     </button>
 
-                                    <button
-                                        disabled={newMembers.length === 0}
+                                    <button 
+                                        disabled={newMembers.length === 0 || loadingAction === 'addMem'}
                                         className={`px-4 py-1 rounded-md text-white ${newMembers.length === 0 ? "bg-gray-400 cursor-not-allowed" : "bg-anotherPrimary"}`}
                                         onClick={handleMemberSelection}
                                     >
-                                        Add
+                                       {loadingAction === 'addMem' ? `Adding${dots}` : 'Add' }
                                     </button>
                                 </div>
 
@@ -984,11 +1007,11 @@ function MainPage() {
                                 >
                                     Cancel
                                 </button>
-                                <button
+                                <button disabled={loadingAction === 'updateGrp'}
                                     onClick={handleUpdateGroupInfo}
                                     className="px-4 py-1 rounded-md bg-anotherPrimary text-white"
                                 >
-                                    Save
+                                    {loadingAction === 'updateGrp' ? `Saving${dots}` : 'Save'}
                                 </button>
                             </div>
                         </div>
@@ -1021,11 +1044,11 @@ function MainPage() {
                                     Cancel
                                 </button>
 
-                                <button
+                                <button disabled={loadingAction === 'removeMem' || loadingAction === 'exitGrp'}
                                     className="px-4 py-1 rounded-md bg-red-500 text-white hover:bg-red-600"
                                     onClick={isConfirmMemRemoval ? handleRemoveMember : handleExitGrp}
                                 >
-                                    {isConfirmMemRemoval ? 'Remove' : 'Exit'}
+                                    {isConfirmMemRemoval ? ( loadingAction === 'removeMem' ? `Removing${dots}` : 'Remove') : ( loadingAction === 'exitGrp' ? `Exiting${dots}` : 'Exit' )}
                                 </button>
                             </div>
                         </div>
@@ -1052,11 +1075,11 @@ function MainPage() {
                                     Cancel
                                 </button>
 
-                                <button
+                                <button disabled={loadingAction === 'deleteGrp'}
                                     className="px-4 py-1 rounded-md bg-red-500 text-white hover:bg-red-600"
                                     onClick={handleDeleteGrp}
                                 >
-                                    Delete
+                                    {loadingAction === 'deleteGrp' ? `Deleting${dots}` : 'Delete'} 
                                 </button>
                             </div>
                         </div>
