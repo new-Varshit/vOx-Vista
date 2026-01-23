@@ -116,7 +116,9 @@ function ChatListing({ setIsMobileChatOpen, registerFetch, isProChatListLoading,
 
     const fetchChatRooms = async () => {
         try {
+            console.log('hello');
             if (searchChatRoom.trim()) {
+                console.log();
                 const response = await api.get('/api/chatRoom/searchActiveChatRoom', {
                     params: { searchChatRoom },
                     withCredentials: true
@@ -136,6 +138,12 @@ function ChatListing({ setIsMobileChatOpen, registerFetch, isProChatListLoading,
             console.log(err);
         }
     }
+
+    useEffect(()=>{
+        if(searchChatRoom.trim()){
+            fetchChatRooms();
+        }
+    },[searchChatRoom]);
 
 
     useEffect(() => {
