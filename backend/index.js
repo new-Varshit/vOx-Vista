@@ -4,6 +4,7 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 import { createServer } from 'http'
 import { Server } from 'socket.io';
+import jwt from 'jsonwebtoken';
 import connectDB from './utils/db.js';
 import userRoutes from './routes/user.route.js';
 import messageRoutes from './routes/message.route.js'
@@ -23,8 +24,37 @@ const port = process.env.PORT || 3000;
 
 const io = new Server(httpServer, {
     cors: {
-        origin: 'http://localhost:5173',
+        origin: process.env.CLIENT_ORIGIN || 'http://localhost:5173',
         credentials: true
+    }
+});
+
+function getCookieValue(cookieHeader, name) {
+    if (!cookieHeader) return null;
+    const parts = cookieHeader.split(';').map(p => p.trim());
+    for (const part of parts) {
+        const [k, ...rest] = part.split('=');
+        if (k === name) return rest.join('=') || null;
+    }
+    return null;
+}
+
+io.use((socket, next) => {
+    try {
+        const tokenFromAuth = socket.handshake?.auth?.token;
+        const tokenFromCookie = getCookieValue(socket.handshake?.headers?.cookie, 'token');
+        const token = tokenFromAuth || tokenFromCookie;
+
+        if (!token) return next(new Error('Unauthorized'));
+
+        const decoded = jwt.verify(token, process.env.SECRET_KEY); // { userId, iat, exp }
+        const userId = decoded?.userId;
+        if (!userId) return next(new Error('Unauthorized'));
+
+        socket.userId = userId;
+        return next();
+    } catch (e) {
+        return next(new Error('Unauthorized'));
     }
 });
 
@@ -33,7 +63,7 @@ app.use(express.json());
 app.use(cookieParser());
 
 const corsOption = {
-    origin: 'http://localhost:5173',
+    origin: process.env.CLIENT_ORIGIN || 'http://localhost:5173',
     credentials: true
 }
 
@@ -45,7 +75,7 @@ app.use('/api/message', auth, messageRoutes);
 app.use('/api/translate', auth, translateRoutes);
 
 io.on('connection', async (socket) => {
-    const userId = socket.handshake.query.userId;
+    const userId = socket.userId;
     socket.join(userId);
     console.log('user connected to the personal room');
     onlineUsers.add(userId);
@@ -87,7 +117,9 @@ io.on('connection', async (socket) => {
     socket.on('sendMessage', async ({ message }) => {
         const chatRoomId = message.chatRoom._id;
 
-        const chatRoom = await ChatRoom.findById(chatRoomId).select('members');
+        // Authorization: only allow members of the room to broadcast
+        const chatRoom = await ChatRoom.findOne({ _id: chatRoomId, members: userId }).select('members');
+        if (!chatRoom) return;
 
         chatRoom.members.forEach(memberId => {
             if (memberId.toString() !== message.sender._id.toString()) {
@@ -124,7 +156,10 @@ io.on('connection', async (socket) => {
         });
     });
 
-    socket.on("readMessages", async ({ chatRoomId, userId }) => {
+    socket.on("readMessages", async ({ chatRoomId }) => {
+        const isMember = await ChatRoom.exists({ _id: chatRoomId, members: userId });
+        if (!isMember) return;
+
         await Message.updateMany(
             {
                 chatRoom: chatRoomId,
@@ -149,9 +184,14 @@ io.on('connection', async (socket) => {
     })
 
     socket.on('joinRoom', (chatRoomId) => {
-        socket.join(chatRoomId);
-        // io.to(chatRoomId).emit('msgsRead');
-        console.log(`User ${socket.id} joined chat room ${chatRoomId}`);
+        // NOTE: authorization is required to prevent joining arbitrary rooms
+        ChatRoom.exists({ _id: chatRoomId, members: userId })
+            .then((ok) => {
+                if (!ok) return;
+                socket.join(chatRoomId);
+                console.log(`User ${socket.id} joined chat room ${chatRoomId}`);
+            })
+            .catch(() => { });
     });
 
     socket.on("leaveRoom", (chatRoomId) => {

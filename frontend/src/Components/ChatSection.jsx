@@ -14,6 +14,8 @@ import { getUserId } from '../utils/UserId';
 
 function ChatSection({
 
+  isMobileChatOpen,
+  setIsMobileChatOpen,
   setActiveChatRooms,
   socketRef,
   emitTyping,
@@ -70,7 +72,7 @@ function ChatSection({
 
       // Translate if needed
       if (
-        incomingMessage.sender._id !== userId &&
+        incomingMessage?.sender?._id !== userId &&
         targetLanguageRef.current
       ) {
         try {
@@ -151,8 +153,8 @@ function ChatSection({
 
     const unreadMessages = messages.filter(
       msg =>
-        msg.sender._id !== userId &&
-        !msg.readBy?.includes(userId)
+        msg?.sender?._id !== userId &&
+        !msg?.readBy?.includes(userId)
     );
 
     if (unreadMessages.length === 0) return;
@@ -175,8 +177,8 @@ function ChatSection({
 
       const hasUnread = messages.some(
         msg =>
-          msg.sender._id !== userId &&
-          !msg.readBy?.includes(userId)
+          msg?.sender?._id !== userId &&
+          !msg?.readBy?.includes(userId)
       );
 
       if (hasUnread) {
@@ -210,7 +212,7 @@ function ChatSection({
     const onMsgsRead = ({ chatRoomId, readerId }) => {
       if (String(chatRoomId) !== String(currentChatRoom?._id)) return; // scope to active room
       setMessages(prev => prev.map(msg => {
-        if (String(msg.sender._id) === String(readerId)) return msg;
+        if (String(msg?.sender?._id) === String(readerId)) return msg;
         if ((msg.readBy || []).map(String).includes(String(readerId))) return msg;
         return { ...msg, readBy: [...(msg.readBy || []), String(readerId)] };
       }));
@@ -312,7 +314,7 @@ function ChatSection({
           const visibleMessages = response?.data?.messages.filter(msg => !msg.deletedFor.includes(userId))
           setMessages(visibleMessages);
 
-          const unread = visibleMessages.filter(m => m.sender._id !== userId && !m.readBy.includes(userId));
+          const unread = visibleMessages.filter(m => m?.sender?._id !== userId && !m.readBy.includes(userId));
 
           setUnreadCount(unread.length);
           const firstUnread = unread[0];
@@ -539,69 +541,65 @@ function ChatSection({
 
   return (
     <>
-      {currentChatRoom ?
-        (<div className='h-full relative'>
-
-          <HeaderSecCS
-            inSelectMode={inSelectMode}
-            selectedMsgs={selectedMsgs}
-            deleteSelectedMsgs={deleteSelectedMsgs}
-            handleCancelSelection={handleCancelSelection}
-            typingUsers={typingUsers}
-            onlineUsers={onlineUsers}
-            isSideProfileCard={isSideProfileCard}
-            sideProfileCard={sideProfileCard}
-          />
-
-
-          {/* message section -->  */}
-
-          <MessageSecCS
-            isMessagesLoading={isMessagesLoading}
-            accessMessage={accessMessage}
-            messages={messages}
-            selectedMsgs={selectedMsgs}
-            inSelectMode={inSelectMode}
-            toggleSelectMessage={toggleSelectMessage}
-            lastMessageRef={lastMessageRef}
-            setIsAtBottom={setIsAtBottom}
-            isDelSelCardVisible={isDelSelCardVisible}
-            handleDelSelCard={handleDelSelCard}
-            handleSingleMsgDeletion={handleSingleMsgDeletion}
-            handleMessageSelect={handleMessageSelect}
-            unreadCount={unreadCount}
-            firstUnreadId={firstUnreadId}
-            firstUnreadRef={firstUnreadRef}
-          />
-
-
-
-          {/* input area  */}
-
-          <InputAreaCS
-            setSelectedFiles={setSelectedFiles}
-            sendInputMessage={sendInputMessage}
-            selectedFiles={selectedFiles}
-            sendMessage={sendMessage}
-            setSendMessage={setSendMessage}
-            handleTyping={handleTyping}
-          />
-
-
-
-        </div>)
-        : (
-          <div className='w-full h-full  flex justify-center items-center bg-white '>
-            <div className='flex flex-col justify-center items-center gap-2'>
-              <p className='font-bold text-5xl text-anotherPrimary'>vOx-Vista</p>
-              <p className='font-medium text-xl '>Your chat will appear here....</p>
-            </div>
+      {currentChatRoom ? (
+        <div className="flex flex-col h-full">
+          {/* Header - Fixed height */}
+          <div className="flex-shrink-0">
+            <HeaderSecCS
+              isMobileChatOpen={isMobileChatOpen}
+              setIsMobileChatOpen={setIsMobileChatOpen}
+              inSelectMode={inSelectMode}
+              selectedMsgs={selectedMsgs}
+              deleteSelectedMsgs={deleteSelectedMsgs}
+              handleCancelSelection={handleCancelSelection}
+              typingUsers={typingUsers}
+              onlineUsers={onlineUsers}
+              isSideProfileCard={isSideProfileCard}
+              sideProfileCard={sideProfileCard}
+            />
           </div>
-        )
 
+          {/* Message section - Takes remaining space with scroll */}
+          <div className="flex-1 overflow-y-auto bg-white scrollbar-thin scrollbar-thumb-gray-400 scrollbar-track-gray-100">
+            <MessageSecCS
+              isMessagesLoading={isMessagesLoading}
+              accessMessage={accessMessage}
+              messages={messages}
+              selectedMsgs={selectedMsgs}
+              inSelectMode={inSelectMode}
+              toggleSelectMessage={toggleSelectMessage}
+              lastMessageRef={lastMessageRef}
+              setIsAtBottom={setIsAtBottom}
+              isDelSelCardVisible={isDelSelCardVisible}
+              handleDelSelCard={handleDelSelCard}
+              handleSingleMsgDeletion={handleSingleMsgDeletion}
+              handleMessageSelect={handleMessageSelect}
+              unreadCount={unreadCount}
+              firstUnreadId={firstUnreadId}
+              firstUnreadRef={firstUnreadRef}
+            />
+          </div>
 
-      }
-
+          {/* Input area - Fixed at bottom with white background behind */}
+          <div className="flex-shrink-0 bg-white border-t border-gray-200 p-3">
+            <InputAreaCS
+              setSelectedFiles={setSelectedFiles}
+              sendInputMessage={sendInputMessage}
+              selectedFiles={selectedFiles}
+              sendMessage={sendMessage}
+              setSendMessage={setSendMessage}
+              handleTyping={handleTyping}
+            />
+          </div>
+        </div>
+      ) : (
+        <div className="w-full h-full flex justify-center items-center bg-white">
+          <div className="flex flex-col justify-center items-center gap-2">
+            <p className="font-bold text-5xl text-anotherPrimary">vOx-Vista</p>
+            <p className="font-medium text-xl">Your chat will appear here....</p>
+          </div>
+        </div>
+      )}
     </>
   )
 }

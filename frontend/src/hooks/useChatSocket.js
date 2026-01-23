@@ -10,8 +10,10 @@ export default function useChatSocket({
         if (!userId) return;
 
         if (!socketRef.current) {
+            const token = localStorage.getItem("token");
             socketRef.current = io(import.meta.env.VITE_API_URL, {
-                query: { userId }
+                auth: { token },
+                withCredentials: true
             });
         }
 

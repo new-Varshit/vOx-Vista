@@ -6,17 +6,20 @@ import { useDispatch } from 'react-redux';
 import ChatListing from '../Components/ChatListing';
 import ChatSection from '../Components/ChatSection';
 import SideProfileSection from '../Components/SideProfileSection';
-import ProfileCard from '../Components/profileCard';
+import ProfileCard from '../Components/ProfileCard';
 import NewChatSearch from '../Components/NewChatSearch';
 import { logIn, logOut } from '../store/authSlice';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faTimes } from '@fortawesome/free-solid-svg-icons';
+import { faTimes,faArrowLeft } from '@fortawesome/free-solid-svg-icons';
 import { setCurrentChat } from '../store/chatSlice';
 import { setCurrentChatRoom } from '../store/chatRoomSlice';
 import useChatSocket from "../hooks/useChatSocket";
 import { useSelector } from "react-redux";
 import { getUserId } from '../utils/UserId';
 import ProfileSkeleton from '../Components/ProfileSkeleton';
+import MobileBottomNav from '../Components/MobileBottomNav';
+import ProfileDetailsSection from '../Components/ProfileDetailsSection';
+
 
 
 
@@ -49,11 +52,13 @@ function MainPage() {
     const [accessMessage, setAccessMessage] = useState('');
     const [isConfirmDltGrp, setIsConfirmDltGrp] = useState(false);
     const [isProChatListLoading, setIsProChatListLoading] = useState(true);
-    const [loadingAction , setLoadingAction] = useState(null);
-
+    const [loadingAction, setLoadingAction] = useState(null);
+    const [isMobileChatOpen, setIsMobileChatOpen] = useState(false);
+    const [isProfileDetailsVisible, setIsProfileDetailsVisible] = useState(false);
+    const [mobileActiveTab, setMobileActiveTab] = useState('chats');
 
     const fetchChatRoomsRef = useRef(null);
- 
+
     const userId = getUserId();
 
 
@@ -109,7 +114,7 @@ function MainPage() {
 
         const handleGlobalDelivery = async (message) => {
             console.log('handleglobaldelivery')
-            if (message.sender._id === userId) return;
+            if (message?.sender?._id === userId) return;
 
             setActiveChatRooms(prev => {
                 const index = prev.findIndex(
@@ -129,10 +134,10 @@ function MainPage() {
 
 
             socket.emit("ack-Delivered", {
-                messageId: message._id,
-                senderId: message.sender._id,
-                chatRoomId: message.chatRoom._id,
-                isRead: currentChatRoomRef.current?._id === message.chatRoom._id
+                messageId: message?._id,
+                senderId: message?.sender?._id,
+                chatRoomId: message?.chatRoom?._id,
+                isRead: currentChatRoomRef.current?._id === message?.chatRoom?._id
             });
 
             console.log("ACK sent for:", message._id);
@@ -205,7 +210,7 @@ function MainPage() {
 
         const handleNewChatRoomAddition = ({ chatRoom }) => {
             try {
-                    
+
                 setActiveChatRooms(prev => {
                     // 🔒 prevent duplicates
                     const alreadyExists = prev.some(room => room._id === chatRoom._id);
@@ -578,7 +583,7 @@ function MainPage() {
 
         } catch (err) {
             console.log(err);
-        }finally{
+        } finally {
             setLoadingAction(null);
         }
     }
@@ -634,7 +639,7 @@ function MainPage() {
             }
         } catch (err) {
             console.log(err);
-        }finally{
+        } finally {
             setLoadingAction(null);
         }
     };
@@ -663,7 +668,7 @@ function MainPage() {
             }
         } catch (err) {
             console.log(err);
-        }finally{
+        } finally {
             setLoadingAction(null);
         }
     };
@@ -681,7 +686,7 @@ function MainPage() {
             }
         } catch (err) {
             console.log(err);
-        }finally{
+        } finally {
             setLoadingAction(null);
         }
     }
@@ -700,7 +705,7 @@ function MainPage() {
             }
         } catch (err) {
             console.log(err);
-        }finally{
+        } finally {
             setLoadingAction(null);
         }
     }
@@ -720,380 +725,476 @@ function MainPage() {
 
 
 
+   return (
+    <>
+        <div className="h-screen flex overflow-hidden bg-gray-100">
 
-    return (
-        <>
-            <div className='h-screen flex'>
-                <div className='  flex flex-col w-1/4 '>
+            {/* ==================== LEFT SIDEBAR ==================== */}
+            <div className={`flex flex-col w-full md:w-1/3 lg:w-1/4 ${isMobileChatOpen ? 'hidden md:flex' : 'flex'} relative overflow-hidden`}>
 
-                    <div className="m-2 relative">
-                        <div className={`transition-opacity duration-300 ${isProChatListLoading ? "opacity-0" : "opacity-100"
-                            }  p-5 bg-gray-200 flex flex-col gap-5 rounded-tl-2xl`}
-                        >
-                            {/* REAL PROFILE STRUCTURE ALWAYS EXISTS */}
-                            <p className="font-bold text-blue-800 text-2xl text-center font-serif">vox-Vista</p>
+                {/* DESKTOP PROFILE SECTION - Hidden on Mobile */}
+                <div className="hidden md:block m-2 relative">
+                    <div className={`transition-opacity duration-300 ${isProChatListLoading ? "opacity-0" : "opacity-100"} p-5 bg-gray-200 flex flex-col gap-5 rounded-tl-2xl`}>
+                        <p className="font-bold text-blue-800 text-2xl text-center font-serif">vox-Vista</p>
 
-                            <div className="flex justify-between">
-                                <div className="flex gap-4 justify-start items-center">
-                                    <div className="w-[72px] h-[72px] rounded-full overflow-hidden border-2 border-gray-300 shadow-md flex-shrink-0">
-
-                                        {profileData?.profile?.profilePic && (
-                                            <img
-                                                src={profileData.profile.profilePic}
-                                                alt="Profile"
-                                                className="w-full h-full object-cover rounded-full"
-                                            />
-                                        )}
-                                    </div>
-
-                                    <div>
-                                        <p className="text-anotherPrimary font-bold">
-                                            {profileData?.userName || "\u00A0"}
-                                        </p>
-                                        <p className="text-font text-sm">
-                                            {profileData?.email || "\u00A0"}
-                                        </p>
-                                    </div>
+                        <div className="flex justify-between">
+                            <div className="flex gap-4 justify-start items-center">
+                                <div className="w-[72px] h-[72px] rounded-full overflow-hidden border-2 border-gray-300 shadow-md flex-shrink-0">
+                                    {profileData?.profile?.profilePic && (
+                                        <img
+                                            src={profileData.profile.profilePic}
+                                            alt="Profile"
+                                            className="w-full h-full object-cover rounded-full"
+                                        />
+                                    )}
                                 </div>
 
-                                <div onClick={profileCardToggle}>
-                                    <svg className="w-5 mt-2" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
-                                        <path d="M441 58.9L453.1 71c9.4 9.4 9.4 24.6 0 33.9L424 134.1 377.9 88 407 58.9c9.4-9.4 24.6-9.4 33.9 0zM209.8 256.2L344 121.9 390.1 168 255.8 302.2c-2.9 2.9-6.5 5-10.4 6.1l-58.5 16.7 16.7-58.5c1.1-3.9 3.2-7.5 6.1-10.4zM373.1 25L175.8 222.2c-8.7 8.7-15 19.4-18.3 31.1l-28.6 100c-2.4 8.4-.1 17.4 6.1 23.6s15.2 8.5 23.6 6.1l100-28.6c11.8-3.4 22.5-9.7 31.1-18.3L487 138.9c28.1-28.1 28.1-73.7 0-101.8L474.9 25C446.8-3.1 401.2-3.1 373.1 25zM88 64C39.4 64 0 103.4 0 152L0 424c0 48.6 39.4 88 88 88l272 0c48.6 0 88-39.4 88-88l0-112c0-13.3-10.7-24-24-24s-24 10.7-24 24l0 112c0 22.1-17.9 40-40 40L88 464c-22.1 0-40-17.9-40-40l0-272c0-22.1 17.9-40 40-40l112 0c13.3 0 24-10.7 24-24s-10.7-24-24-24L88 64z" />
-                                    </svg>
+                                <div>
+                                    <p className="text-anotherPrimary font-bold">
+                                        {profileData?.userName || "\u00A0"}
+                                    </p>
+                                    <p className="text-font text-sm">
+                                        {profileData?.email || "\u00A0"}
+                                    </p>
                                 </div>
                             </div>
 
-                            <div className="flex justify-evenly">
-                                <button className="bg-anotherPrimary rounded-md text-sm font-semibold py-1 text-white w-2/5">
-                                    Delete
-                                </button>
-                                <button onClick={userLoggedOut} className="bg-anotherPrimary rounded-md text-sm font-semibold py-1 text-white w-2/5">
-                                    Logout
-                                </button>
+                            <div onClick={profileCardToggle}>
+                                <svg className="w-5 mt-2 cursor-pointer" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+                                    <path d="M441 58.9L453.1 71c9.4 9.4 9.4 24.6 0 33.9L424 134.1 377.9 88 407 58.9c9.4-9.4 24.6-9.4 33.9 0zM209.8 256.2L344 121.9 390.1 168 255.8 302.2c-2.9 2.9-6.5 5-10.4 6.1l-58.5 16.7 16.7-58.5c1.1-3.9 3.2-7.5 6.1-10.4zM373.1 25L175.8 222.2c-8.7 8.7-15 19.4-18.3 31.1l-28.6 100c-2.4 8.4-.1 17.4 6.1 23.6s15.2 8.5 23.6 6.1l100-28.6c11.8-3.4 22.5-9.7 31.1-18.3L487 138.9c28.1-28.1 28.1-73.7 0-101.8L474.9 25C446.8-3.1 401.2-3.1 373.1 25zM88 64C39.4 64 0 103.4 0 152L0 424c0 48.6 39.4 88 88 88l272 0c48.6 0 88-39.4 88-88l0-112c0-13.3-10.7-24-24-24s-24 10.7-24 24l0 112c0 22.1-17.9 40-40 40L88 464c-22.1 0-40-17.9-40-40l0-272c0-22.1 17.9-40 40-40l112 0c13.3 0 24-10.7 24-24s-10.7-24-24-24L88 64z" />
+                                </svg>
                             </div>
                         </div>
 
-                        {isProChatListLoading && (
-                            <div className={`  absolute inset-0 z-10 transition-opacity duration-300 ${isProChatListLoading ? "opacity-100" : "opacity-0 pointer-events-none"
-                                }`}>
-                                <ProfileSkeleton />
+                        <div className="flex justify-evenly">
+                            <button className="bg-anotherPrimary rounded-md text-sm font-semibold py-1 text-white w-2/5 hover:bg-blue-700 transition">
+                                Delete
+                            </button>
+                            <button onClick={userLoggedOut} className="bg-anotherPrimary rounded-md text-sm font-semibold py-1 text-white w-2/5 hover:bg-blue-700 transition">
+                                Logout
+                            </button>
+                        </div>
+                    </div>
+
+                    {isProChatListLoading && (
+                        <div className={`absolute inset-0 z-10 transition-opacity duration-300 ${isProChatListLoading ? "opacity-100" : "opacity-0 pointer-events-none"}`}>
+                            <ProfileSkeleton />
+                        </div>
+                    )}
+                </div>
+
+                {/* MOBILE: SLIDING SECTIONS */}
+                <div className="md:hidden flex-1 flex relative">
+                    
+                    {/* Chat Listing Section */}
+                    <div className={`absolute inset-0 transition-transform duration-300 ease-in-out ${
+                        mobileActiveTab === 'chats' 
+                            ? 'translate-x-0' 
+                            : '-translate-x-full'
+                    }`}>
+                        <div className='h-full overflow-auto bg-gray-200 m-2 rounded-2xl pb-20'>
+                            <ChatListing 
+                                setIsMobileChatOpen={setIsMobileChatOpen}
+                                registerFetch={fetchChatRoomsRef}
+                                isProChatListLoading={isProChatListLoading}
+                                setIsProChatListLoading={setIsProChatListLoading}
+                                newChatCard={newChatCard}
+                                setActiveChatRooms={setActiveChatRooms}
+                                activeChatRooms={activeChatRooms}
+                            />
+                        </div>
+                    </div>
+
+                    {/* Profile Details Section */}
+                    <div className={`absolute inset-0 transition-transform duration-300 ease-in-out ${
+                        mobileActiveTab === 'profile'
+                            ? 'translate-x-0'
+                            : mobileActiveTab === 'chats'
+                                ? 'translate-x-full'
+                                : '-translate-x-full'
+                    }`}>
+                        <div className='h-full m-2 rounded-2xl overflow-hidden pb-20'>
+                            <ProfileDetailsSection
+                                profileData={profileData}
+                                userLoggedOut={userLoggedOut}
+                                setMobileActiveTab={setMobileActiveTab}
+                                profileCardToggle={profileCardToggle}
+                            />
+                        </div>
+                    </div>
+
+                    {/* Settings Section */}
+                    <div className={`absolute inset-0 transition-transform duration-300 ease-in-out ${
+                        mobileActiveTab === 'settings'
+                            ? 'translate-x-0'
+                            : 'translate-x-full'
+                    }`}>
+                        <div className='h-full m-2 rounded-2xl overflow-hidden pb-20 bg-gray-200'>
+                            <div className='flex flex-col h-full'>
+                                <div className='flex items-center gap-4 p-4 bg-gradient-to-r from-anotherPrimary to-blue-600 rounded-t-2xl'>
+                                    <button onClick={() => setMobileActiveTab('chats')}>
+                                        <FontAwesomeIcon icon={faArrowLeft} className='text-white text-xl' />
+                                    </button>
+                                    <h2 className='text-white font-bold text-lg'>Settings</h2>
+                                </div>
+                                <div className='flex-1 overflow-y-auto p-4'>
+                                    <p className='text-gray-600 text-center mt-20 text-sm'>Settings coming soon...</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                {/* DESKTOP CHAT LISTING */}
+                <div className='hidden md:block flex-1 overflow-auto bg-gray-200 m-2 rounded-bl-2xl mt-0'>
+                    <ChatListing 
+                        setIsMobileChatOpen={setIsMobileChatOpen}
+                        registerFetch={fetchChatRoomsRef}
+                        isProChatListLoading={isProChatListLoading}
+                        setIsProChatListLoading={setIsProChatListLoading}
+                        newChatCard={newChatCard}
+                        setActiveChatRooms={setActiveChatRooms}
+                        activeChatRooms={activeChatRooms}
+                    />
+                </div>
+            </div>
+
+            {/* ==================== CHAT SECTION ==================== */}
+            <div className={`flex flex-col w-full md:flex-1 min-h-0 h-full ${isMobileChatOpen ? 'flex' : 'hidden md:flex'} ${isSideProfileCard ? 'lg:w-1/2' : 'lg:w-3/4'}`}>
+                <ChatSection
+                    isMobileChatOpen={isMobileChatOpen}
+                    setIsMobileChatOpen={setIsMobileChatOpen}
+                    accessMessage={accessMessage}
+                    setActiveChatRooms={setActiveChatRooms}
+                    socketRef={socketRef}
+                    emitTyping={emitTyping}
+                    emitStopTyping={emitStopTyping}
+                    joinChatRoom={joinChatRoom}
+                    leavePersonalRoom={leavePersonalRoom}
+                    sideProfileCard={sideProfileCard}
+                    isSideProfileCard={isSideProfileCard}
+                    delOptCardToggle={delOptCardToggle}
+                    messages={messages}
+                    setMessages={setMessages}
+                />
+            </div>
+
+            {/* ==================== SIDE PROFILE SECTION ==================== */}
+            {isSideProfileCard && (
+                <>
+                    {/* Desktop: right column */}
+                    <div className="hidden lg:block w-1/4">
+                        <SideProfileSection
+                            setIsSearchNewMember={setIsSearchNewMember}
+                            setIsGroupInfoCardVisible={setIsGroupInfoCardVisible}
+                            setSelectedMember={setSelectedMember}
+                            setIsConfirmMemRemoval={setIsConfirmMemRemoval}
+                            setIsConfirmExitGrp={setIsConfirmExitGrp}
+                            setIsConfirmDltGrp={setIsConfirmDltGrp}
+                            setIsSideProfileCard={setIsSideProfileCard}
+                        />
+                    </div>
+
+                    {/* Mobile/Tablet: slide-over */}
+                    <div
+                        className="lg:hidden fixed inset-0 z-40 bg-black/30"
+                        onClick={() => setIsSideProfileCard(false)}
+                    >
+                        <div
+                            className="absolute right-0 top-0 h-full w-[92vw] max-w-md bg-white shadow-2xl"
+                            onClick={(e) => e.stopPropagation()}
+                        >
+                            <SideProfileSection
+                                setIsSearchNewMember={setIsSearchNewMember}
+                                setIsGroupInfoCardVisible={setIsGroupInfoCardVisible}
+                                setSelectedMember={setSelectedMember}
+                                setIsConfirmMemRemoval={setIsConfirmMemRemoval}
+                                setIsConfirmExitGrp={setIsConfirmExitGrp}
+                                setIsConfirmDltGrp={setIsConfirmDltGrp}
+                                setIsSideProfileCard={setIsSideProfileCard}
+                            />
+                        </div>
+                    </div>
+                </>
+            )}
+
+            {/* ==================== MODALS ==================== */}
+            
+            {/* Profile Update Card */}
+            {isProfileCardVisible && (
+                <ProfileCard 
+                    profileCardToggle={profileCardToggle} 
+                    profileData={profileData}
+                    setMobileActiveTab={setMobileActiveTab}
+                />
+            )}
+
+            {/* New Chat Search */}
+            {isNewChatCardVisible && (
+                <NewChatSearch newChatCard={newChatCard} />
+            )}
+
+            {/* Delete Message Options */}
+            {isDelOptCardVisible && (
+                <div className='h-screen w-full z-10 absolute bg-transparent backdrop-blur-md flex justify-center items-center' onClick={() => setIsDelOptCardVisible(false)}>
+                    <div className='w-[92vw] max-w-sm py-6 px-6 bg-gray-200 flex flex-col rounded-xl' onClick={(e) => e.stopPropagation()}>
+                        <div className='flex justify-end'>
+                            <FontAwesomeIcon icon={faTimes} className='text-lg text-anotherPrimary cursor-pointer' onClick={() => setIsDelOptCardVisible(false)} />
+                        </div>
+                        <div className='flex flex-col gap-4'>
+                            <p className='text-2xl font-bold text-center'>
+                                Delete Message?
+                            </p>
+                            <div className='flex flex-col gap-3 justify-evenly items-center'>
+                                <button className='w-3/4 p-1 py-2 font-medium hover:bg-white hover:text-anotherPrimary bg-anotherPrimary text-white text-sm rounded-lg' onClick={deleteSelectedMsg}>Delete for me</button>
+                                <button className='w-3/4 p-1 py-2 font-medium hover:bg-white hover:text-anotherPrimary text-white bg-anotherPrimary text-sm rounded-lg' onClick={deleteMsgForEveryone}>Delete for everyone</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Add New Members */}
+            {isSearchNewMember && (
+                <div
+                    className="fixed inset-0 z-50 bg-black/30 flex items-center justify-center"
+                    onClick={() => {
+                        setIsSearchNewMember(false);
+                        setPotentialMembers([]);
+                        setNewMembers([]);
+                    }}
+                >
+                    <div
+                        className="w-[92vw] max-w-md py-6 px-5 bg-gray-200 rounded-xl shadow-xl flex flex-col gap-4"
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        <h3 className="text-lg font-bold text-center text-anotherPrimary">
+                            Add Members
+                        </h3>
+                        <input
+                            className="rounded-full py-2 px-4 text-sm w-full focus:outline-none text-gray-700"
+                            type="text"
+                            placeholder="Search email or username"
+                            onChange={(e) => setSearchInput(e.target.value)}
+                        />
+
+                        {newMembers.length > 0 && (
+                            <div className="flex flex-wrap gap-2">
+                                {newMembers.map(mem => (
+                                    <span
+                                        key={mem._id}
+                                        className="px-3 py-1 bg-anotherPrimary text-white text-xs rounded-full"
+                                    >
+                                        {mem.userName}
+                                    </span>
+                                ))}
+                            </div>
+                        )}
+
+                        <div className="max-h-56 overflow-y-auto flex flex-col gap-2">
+                            {filteredPotentialMembers.map((potMem) => {
+                                const isSelected = newMembers.some(m => m._id === potMem._id);
+
+                                return (
+                                    <div
+                                        key={potMem._id}
+                                        onClick={() => toggleMember(potMem)}
+                                        className={`flex items-center gap-3 p-2 rounded-lg cursor-pointer ${isSelected ? "bg-anotherPrimary text-white" : "bg-white"}`}
+                                    >
+                                        <img
+                                            src={potMem.profile?.profilePic}
+                                            className="w-8 h-8 rounded-full object-cover"
+                                        />
+                                        <div className="flex flex-col">
+                                            <span className="text-sm font-medium">{potMem.userName}</span>
+                                            <span className="text-xs text-gray-500">{potMem.email}</span>
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                        </div>
+
+                        {newMembers.length > 0 && (
+                            <div className="flex justify-end gap-3 pt-2">
+                                <button
+                                    className="px-4 py-1 rounded-md border border-anotherPrimary text-anotherPrimary"
+                                    onClick={() => {
+                                        setIsSearchNewMember(false);
+                                        setPotentialMembers([]);
+                                        setNewMembers([]);
+                                    }}
+                                >
+                                    Cancel
+                                </button>
+
+                                <button
+                                    disabled={newMembers.length === 0 || loadingAction === 'addMem'}
+                                    className={`px-4 py-1 rounded-md text-white ${newMembers.length === 0 ? "bg-gray-400 cursor-not-allowed" : "bg-anotherPrimary"}`}
+                                    onClick={handleMemberSelection}
+                                >
+                                    {loadingAction === 'addMem' ? `Adding${dots}` : 'Add'}
+                                </button>
                             </div>
                         )}
                     </div>
-
-
-                    <div className='flex-1 overflow-auto bg-gray-200 m-2 rounded-bl-2xl mt-0'>
-                        <ChatListing registerFetch={fetchChatRoomsRef} isProChatListLoading={isProChatListLoading} setIsProChatListLoading={setIsProChatListLoading} newChatCard={newChatCard} setActiveChatRooms={setActiveChatRooms} activeChatRooms={activeChatRooms} />
-                    </div>
                 </div>
+            )}
 
-
-                <div className={`${isSideProfileCard ? 'w-1/2' : 'w-3/4'}   h-full py-2`}>
-                    <ChatSection
-                        accessMessage={accessMessage}
-                        setActiveChatRooms={setActiveChatRooms}
-                        socketRef={socketRef}
-                        emitTyping={emitTyping}
-                        emitStopTyping={emitStopTyping}
-                        joinChatRoom={joinChatRoom}
-                        leavePersonalRoom={leavePersonalRoom}
-                        sideProfileCard={sideProfileCard}
-                        isSideProfileCard={isSideProfileCard}
-                        delOptCardToggle={delOptCardToggle}
-                        messages={messages}
-                        setMessages={setMessages}
-                    />
-                </div>
-
-
-
-                {isSideProfileCard &&
-                    <SideProfileSection setIsSearchNewMember={setIsSearchNewMember} setIsGroupInfoCardVisible={setIsGroupInfoCardVisible} setSelectedMember={setSelectedMember} setIsConfirmMemRemoval={setIsConfirmMemRemoval} setIsConfirmExitGrp={setIsConfirmExitGrp} setIsConfirmDltGrp={setIsConfirmDltGrp} />
-                }
-
-                {isProfileCardVisible &&
-                    <ProfileCard profileCardToggle={profileCardToggle} profileData={profileData} />
-                }
-
-
-                {isNewChatCardVisible &&
-                    <NewChatSearch newChatCard={newChatCard} />
-                }
-                {isDelOptCardVisible &&
-                    (
-                        <div className='h-screen w-full z-10 absolute bg-transparent backdrop-blur-md flex justify-center items-center' onClick={() => setIsDelOptCardVisible(false)}>
-                            <div className='w-1/4 py-6 px-6 bg-gray-200 flex flex-col  rounded-xl'>
-                                <div className='flex justify-end'>
-                                    <FontAwesomeIcon icon={faTimes} className='text-lg text-anotherPrimary' />
-                                </div>
-                                <div className='flex flex-col gap-4 '>
-                                    <p className='text-2xl font-bold text-center'>
-                                        Delete Message ?
-                                    </p>
-                                    <div className='flex  flex-col gap-3 justify-evenly items-center'>
-                                        <button className='w-3/4 p-1 py-2 font-medium hover:bg-white hover:text-anotherPrimary bg-anotherPrimary text-white text-sm rounded-lg' onClick={deleteSelectedMsg}>Delete for me</button>
-                                        <button className='w-3/4 p-1 py-2 font-medium hover:bg-white hover:text-anotherPrimary text-white bg-anotherPrimary text-sm rounded-lg' onClick={deleteMsgForEveryone}>Delete for everyone</button>
-                                    </div>
-                                </div>
-
-                            </div>
-                        </div>
-                    )
-                }
-
-                {isSearchNewMember && (
-                    <div
-                        className="fixed inset-0 z-50 bg-black/30 flex items-center justify-center"
-                        onClick={() => {
-                            setIsSearchNewMember(false);
-                            setPotentialMembers([]);
-                            setNewMembers([]);
-                        }}
-                    >
-                        <div
-                            className="w-[380px] py-6 px-5 bg-gray-200 rounded-xl shadow-xl flex flex-col gap-4"
-                            onClick={(e) => e.stopPropagation()}
-                        >
-                            <h3 className="text-lg font-bold text-center text-anotherPrimary">
-                                Add Members
+            {/* Edit Group Info */}
+            {isGroupInfoCardVisible && (
+                <div className="fixed inset-0 z-50 bg-black/30 flex items-center justify-center">
+                    <div className="w-[92vw] max-w-lg bg-gray-200 rounded-xl shadow-xl p-6 flex flex-col gap-5">
+                        <div className="flex justify-between items-center">
+                            <h3 className="text-lg font-bold text-anotherPrimary">
+                                Edit Group Info
                             </h3>
-                            <input
-                                className="rounded-full py-2 px-4 text-sm w-full focus:outline-none text-gray-700"
-                                type="text"
-                                placeholder="Search email or username"
-                                onChange={(e) => setSearchInput(e.target.value)}
-                            />
-
-                            {/* Selected members */}
-                            {newMembers.length > 0 && (
-                                <div className="flex flex-wrap gap-2">
-                                    {newMembers.map(mem => (
-                                        <span
-                                            key={mem._id}
-                                            className="px-3 py-1 bg-anotherPrimary text-white text-xs rounded-full"
-                                        >
-                                            {mem.userName}
-                                        </span>
-                                    ))}
-                                </div>
-                            )}
-
-                            {/* Search results */}
-                            <div className="max-h-56 overflow-y-auto flex flex-col gap-2">
-                                {filteredPotentialMembers.map((potMem) => {
-                                    const isSelected = newMembers.some(m => m._id === potMem._id);
-
-                                    return (
-                                        <div
-                                            key={potMem._id}
-                                            onClick={() => toggleMember(potMem)}
-                                            className={`flex items-center gap-3 p-2 rounded-lg cursor-pointer 
-                ${isSelected ? "bg-anotherPrimary text-white" : "bg-white"}
-              `}
-                                        >
-                                            <img
-                                                src={potMem.profile?.profilePic}
-                                                className="w-8 h-8 rounded-full object-cover"
-                                            />
-                                            <div className="flex flex-col">
-                                                <span className="text-sm font-medium">{potMem.userName}</span>
-                                                <span className="text-xs text-gray-500">{potMem.email}</span>
-                                            </div>
-                                        </div>
-                                    );
-                                })}
-                            </div>
-
-                            {/* Actions */}
-
-
-                            {newMembers.length > 0 && (
-                                <div className="flex justify-end gap-3 pt-2">
-                                    <button
-                                        className="px-4 py-1 rounded-md border border-anotherPrimary text-anotherPrimary"
-                                        onClick={() => {
-                                            setIsSearchNewMember(false);
-                                            setPotentialMembers([]);
-                                            setNewMembers([]);
-                                        }}
-                                    >
-                                        Cancel
-                                    </button>
-
-                                    <button 
-                                        disabled={newMembers.length === 0 || loadingAction === 'addMem'}
-                                        className={`px-4 py-1 rounded-md text-white ${newMembers.length === 0 ? "bg-gray-400 cursor-not-allowed" : "bg-anotherPrimary"}`}
-                                        onClick={handleMemberSelection}
-                                    >
-                                       {loadingAction === 'addMem' ? `Adding${dots}` : 'Add' }
-                                    </button>
-                                </div>
-
-                            )}
-
+                            <button
+                                onClick={() => { setIsGroupInfoCardVisible(false); handleGroupInfoCleaner(); }}
+                                className="text-anotherPrimary hover:text-blue-900 text-xl"
+                            >
+                                ✕
+                            </button>
                         </div>
-                    </div>
-                )}
 
-
-                {isGroupInfoCardVisible && (
-                    <div className="fixed inset-0 z-50 bg-black/30 flex items-center justify-center">
-                        <div className="w-[420px] bg-gray-200 rounded-xl shadow-xl p-6 flex flex-col gap-5">
-
-                            <div className="flex justify-between items-center">
-                                <h3 className="text-lg font-bold text-anotherPrimary">
-                                    Edit Group Info
-                                </h3>
-                                <button
-                                    onClick={() => { setIsGroupInfoCardVisible(false); handleGroupInfoCleaner(); }}
-                                    className="text-anotherPrimary hover:text-blue-900 text-xl"
-                                >
-                                    ✕
-                                </button>
+                        <div className="flex flex-col items-center gap-2">
+                            <div className="w-24 h-24 rounded-full overflow-hidden border-2 border-anotherPrimary">
+                                <img
+                                    src={groupPreviewIcon || currentChatRoom?.groupIcon}
+                                    className="w-full h-full object-cover"
+                                />
                             </div>
-
-                            {/* Group Icon */}
-                            <div className="flex flex-col items-center gap-2">
-                                <div className="w-24 h-24 rounded-full overflow-hidden border-2 border-anotherPrimary">
-                                    <img
-                                        src={groupPreviewIcon || currentChatRoom?.groupIcon}
-                                        className="w-full h-full object-cover"
-                                    />
-                                </div>
-                                <label className="text-sm text-anotherPrimary cursor-pointer font-medium">
-                                    Change Icon
-                                    <input
-                                        type="file"
-                                        accept="image/*"
-                                        className="hidden"
-                                        onChange={handleGroupIconChange}
-                                    />
-                                </label>
-                            </div>
-
-                            {/* Group Name */}
-                            <div className="flex flex-col gap-1">
-                                <label className="text-sm font-medium text-gray-700">
-                                    Group Name
-                                </label>
+                            <label className="text-sm text-anotherPrimary cursor-pointer font-medium">
+                                Change Icon
                                 <input
-                                    type="text"
-                                    value={groupName}
-                                    onChange={(e) => setGroupName(e.target.value)}
-                                    className="rounded-lg px-3 py-2 text-sm focus:outline-none"
-                                    placeholder="Enter group name"
+                                    type="file"
+                                    accept="image/*"
+                                    className="hidden"
+                                    onChange={handleGroupIconChange}
                                 />
-                            </div>
+                            </label>
+                        </div>
 
-                            {/* Group Description */}
-                            <div className="flex flex-col gap-1">
-                                <label className="text-sm font-medium text-gray-700">
-                                    Description
-                                </label>
-                                <textarea
-                                    value={groupDescription}
-                                    onChange={(e) => setGroupDescription(e.target.value)}
-                                    rows={3}
-                                    className="rounded-lg px-3 py-2 text-sm focus:outline-none resize-none"
-                                    placeholder="Write something about the group..."
-                                />
-                            </div>
+                        <div className="flex flex-col gap-1">
+                            <label className="text-sm font-medium text-gray-700">
+                                Group Name
+                            </label>
+                            <input
+                                type="text"
+                                value={groupName}
+                                onChange={(e) => setGroupName(e.target.value)}
+                                className="rounded-lg px-3 py-2 text-sm focus:outline-none"
+                                placeholder="Enter group name"
+                            />
+                        </div>
 
-                            {/* Actions */}
-                            <div className="flex justify-end gap-3 pt-2">
-                                <button
-                                    onClick={() => { setIsGroupInfoCardVisible(false); handleGroupInfoCleaner() }}
-                                    className="px-4 py-1 rounded-md border border-anotherPrimary text-anotherPrimary"
-                                >
-                                    Cancel
-                                </button>
-                                <button disabled={loadingAction === 'updateGrp'}
-                                    onClick={handleUpdateGroupInfo}
-                                    className="px-4 py-1 rounded-md bg-anotherPrimary text-white"
-                                >
-                                    {loadingAction === 'updateGrp' ? `Saving${dots}` : 'Save'}
-                                </button>
-                            </div>
+                        <div className="flex flex-col gap-1">
+                            <label className="text-sm font-medium text-gray-700">
+                                Description
+                            </label>
+                            <textarea
+                                value={groupDescription}
+                                onChange={(e) => setGroupDescription(e.target.value)}
+                                rows={3}
+                                className="rounded-lg px-3 py-2 text-sm focus:outline-none resize-none"
+                                placeholder="Write something about the group..."
+                            />
+                        </div>
+
+                        <div className="flex justify-end gap-3 pt-2">
+                            <button
+                                onClick={() => { setIsGroupInfoCardVisible(false); handleGroupInfoCleaner() }}
+                                className="px-4 py-1 rounded-md border border-anotherPrimary text-anotherPrimary"
+                            >
+                                Cancel
+                            </button>
+                            <button 
+                                disabled={loadingAction === 'updateGrp'}
+                                onClick={handleUpdateGroupInfo}
+                                className="px-4 py-1 rounded-md bg-anotherPrimary text-white"
+                            >
+                                {loadingAction === 'updateGrp' ? `Saving${dots}` : 'Save'}
+                            </button>
                         </div>
                     </div>
-                )}
+                </div>
+            )}
 
-                {(isConfirmMemRemoval || isConfirmExitGrp) && (
-                    <div className="fixed inset-0 z-50 bg-black/30 flex items-center justify-center">
-                        <div className="w-[360px] bg-gray-200 rounded-xl shadow-xl p-5 flex flex-col gap-4">
+            {/* Remove Member / Exit Group Confirmation */}
+            {(isConfirmMemRemoval || isConfirmExitGrp) && (
+                <div className="fixed inset-0 z-50 bg-black/30 flex items-center justify-center">
+                    <div className="w-[92vw] max-w-sm bg-gray-200 rounded-xl shadow-xl p-5 flex flex-col gap-4">
+                        <h3 className="text-lg font-bold text-center text-anotherPrimary">
+                            {isConfirmMemRemoval ? "Remove Member" : "Exit Group"}
+                        </h3>
 
-                            <h3 className="text-lg font-bold text-center text-anotherPrimary">
-                                {isConfirmMemRemoval ? "Remove Member" : "Exit Group"}
-                            </h3>
+                        <p className="text-sm text-gray-700 text-center">
+                            {isConfirmMemRemoval
+                                ? `Are you sure you want to remove "${selectedMember?.userName}" from this group?`
+                                : "Are you sure you want to exit the group?"}
+                        </p>
 
-                            <p className="text-sm text-gray-700 text-center">
-                                {isConfirmMemRemoval ?
-                                    `Are you sure you want to remove "
-                                ${<span className="font-semibold text-anotherPrimary"> {selectedMember?.userName} </span>}
-                                "from this group?`
-                                    :
-                                    "Are you sure you want to exit the group"
-                                }
-                            </p>
+                        <div className="flex justify-center gap-3 pt-2">
+                            <button
+                                className="px-4 py-1 rounded-md border border-anotherPrimary text-anotherPrimary"
+                                onClick={isConfirmMemRemoval ? () => setIsConfirmMemRemoval(false) : () => setIsConfirmExitGrp(false)}
+                            >
+                                Cancel
+                            </button>
 
-                            <div className="flex justify-center gap-3 pt-2">
-                                <button
-                                    className="px-4 py-1 rounded-md border border-anotherPrimary text-anotherPrimary"
-                                    onClick={isConfirmMemRemoval ? () => setIsConfirmMemRemoval(false) : () => setIsConfirmExitGrp(false)}
-                                >
-                                    Cancel
-                                </button>
-
-                                <button disabled={loadingAction === 'removeMem' || loadingAction === 'exitGrp'}
-                                    className="px-4 py-1 rounded-md bg-red-500 text-white hover:bg-red-600"
-                                    onClick={isConfirmMemRemoval ? handleRemoveMember : handleExitGrp}
-                                >
-                                    {isConfirmMemRemoval ? ( loadingAction === 'removeMem' ? `Removing${dots}` : 'Remove') : ( loadingAction === 'exitGrp' ? `Exiting${dots}` : 'Exit' )}
-                                </button>
-                            </div>
+                            <button 
+                                disabled={loadingAction === 'removeMem' || loadingAction === 'exitGrp'}
+                                className="px-4 py-1 rounded-md bg-red-500 text-white hover:bg-red-600"
+                                onClick={isConfirmMemRemoval ? handleRemoveMember : handleExitGrp}
+                            >
+                                {isConfirmMemRemoval ? (loadingAction === 'removeMem' ? `Removing${dots}` : 'Remove') : (loadingAction === 'exitGrp' ? `Exiting${dots}` : 'Exit')}
+                            </button>
                         </div>
                     </div>
-                )}
+                </div>
+            )}
 
-                {isConfirmDltGrp && (
-                    <div className="fixed inset-0 z-50 bg-black/30 flex items-center justify-center">
-                        <div className="w-[360px] bg-gray-200 rounded-xl shadow-xl p-5 flex flex-col gap-4">
+            {/* Delete Group Confirmation */}
+            {isConfirmDltGrp && (
+                <div className="fixed inset-0 z-50 bg-black/30 flex items-center justify-center">
+                    <div className="w-[92vw] max-w-sm bg-gray-200 rounded-xl shadow-xl p-5 flex flex-col gap-4">
+                        <h3 className="text-lg font-bold text-center text-anotherPrimary">
+                            Delete Group
+                        </h3>
 
-                            <h3 className="text-lg font-bold text-center text-anotherPrimary">
-                                Delete Group
-                            </h3>
+                        <p className="text-sm text-gray-700 text-center">
+                            Are you sure you want to delete this group?
+                        </p>
 
-                            <p className="text-sm text-gray-700 text-center">
-                                Are you sure you want to delete this group ?
-                            </p>
+                        <div className="flex justify-center gap-3 pt-2">
+                            <button
+                                className="px-4 py-1 rounded-md border border-anotherPrimary text-anotherPrimary"
+                                onClick={() => setIsConfirmDltGrp(false)}
+                            >
+                                Cancel
+                            </button>
 
-                            <div className="flex justify-center gap-3 pt-2">
-                                <button
-                                    className="px-4 py-1 rounded-md border border-anotherPrimary text-anotherPrimary"
-                                    onClick={() => setIsConfirmDltGrp(false)}
-                                >
-                                    Cancel
-                                </button>
-
-                                <button disabled={loadingAction === 'deleteGrp'}
-                                    className="px-4 py-1 rounded-md bg-red-500 text-white hover:bg-red-600"
-                                    onClick={handleDeleteGrp}
-                                >
-                                    {loadingAction === 'deleteGrp' ? `Deleting${dots}` : 'Delete'} 
-                                </button>
-                            </div>
+                            <button 
+                                disabled={loadingAction === 'deleteGrp'}
+                                className="px-4 py-1 rounded-md bg-red-500 text-white hover:bg-red-600"
+                                onClick={handleDeleteGrp}
+                            >
+                                {loadingAction === 'deleteGrp' ? `Deleting${dots}` : 'Delete'}
+                            </button>
                         </div>
                     </div>
-                )}
+                </div>
+            )}
 
-
-            </div>
-
-
-
-
-        </>
-    )
+            {/* ==================== MOBILE BOTTOM NAV ==================== */}
+            {!isMobileChatOpen && (
+                <MobileBottomNav
+                    activeTab={mobileActiveTab}
+                    setActiveTab={setMobileActiveTab}
+                />
+            )}
+        </div>
+    </>
+)
 }
 
 export default MainPage

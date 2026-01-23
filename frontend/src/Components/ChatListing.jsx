@@ -7,14 +7,13 @@ import { setCurrentChatRoom } from '../store/chatRoomSlice';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import api from '../utils/Api';
 import { faSearch, faArrowRight, faPlus } from '@fortawesome/free-solid-svg-icons';
-import { jwtDecode } from 'jwt-decode';
-import useChatSocket from '../hooks/useChatSocket';
+
 // import userId from '../utils/UserId';
 import ChatListSkeleton from './ChatListSkeleton';
 import { getUserId } from '../utils/UserId';
 
 
-function ChatListing({ registerFetch, isProChatListLoading, setIsProChatListLoading, newChatCard, setActiveChatRooms, activeChatRooms }) {
+function ChatListing({ setIsMobileChatOpen, registerFetch, isProChatListLoading, setIsProChatListLoading, newChatCard, setActiveChatRooms, activeChatRooms }) {
 
 
 
@@ -48,6 +47,8 @@ function ChatListing({ registerFetch, isProChatListLoading, setIsProChatListLoad
             })
             if (response.data.success) {
                 dispatch(setCurrentChatRoom(response.data.chatRoom));
+                        setIsMobileChatOpen(true);
+
             }
         } catch (err) {
             console.log(err)
@@ -62,6 +63,7 @@ function ChatListing({ registerFetch, isProChatListLoading, setIsProChatListLoad
         );
         dispatch(setCurrentChat(null));
         dispatch(setCurrentChatRoom(groupChat));
+        setIsMobileChatOpen(true);
     }
 
 
@@ -152,138 +154,167 @@ function ChatListing({ registerFetch, isProChatListLoading, setIsProChatListLoad
 
 
 
+return (
+    <div className='flex flex-col h-full'>
 
-    return (
-
-        <div className='flex flex-col gap-2 h-full py-4 '>
-
-            <div className='w-11/12 mx-auto flex justify-between items-center mb-2'>
-                <div className='flex gap-2 items-center'>
-                    <p className='text-black font-bold text-xl'>Chats</p>
-                    <FontAwesomeIcon icon={faArrowRight} className='text-black text-xl' />
-                </div>
-                <FontAwesomeIcon icon={faPlus} onClick={newChatCard} className='text-black text-xl hover:text-anotherPrimary' />
-            </div>
-
-            {/* Search bar section */}
-            <div className='sticky  top-0 flex overflow-hidden rounded-full w-5/6 mx-auto bg-white z-10 mb-4'>
-                <button className='bg-white p-1 px-3 border-l '>
-                    <FontAwesomeIcon icon={faSearch} className="text-gray-300" />
+        {/* Header Section */}
+        <div className='flex-shrink-0 px-3 md:px-4 py-3 md:py-4'>
+            <div className='flex justify-between items-center'>
+                <h1 className='text-anotherPrimary font-bold text-xl md:text-2xl'>Chats</h1>
+                <button 
+                    onClick={newChatCard}
+                    className='w-9 h-9 md:w-10 md:h-10 flex items-center justify-center rounded-full hover:bg-gray-200 transition-colors'
+                    aria-label="New chat"
+                >
+                    <FontAwesomeIcon icon={faPlus} className='text-anotherPrimary text-lg md:text-xl' />
                 </button>
-                <input type="text" className='text-sm bg-white focus:outline-none py-3 w-full text-gray-600' onChange={(e) => setSearchChatRoom(e.target.value)} placeholder='Search...' />
             </div>
-
-            {/* Scrollable chat listing */}
-            <div className='flex flex-col gap-5 h-full scroll-smooth overflow-y-scroll scrollbar-thin scrollbar-thumb-gray-200 scrollbar-track-gray-200 px-4'>
-                <div className="transition-opacity duration-300 ease-in-out">
-                    {isProChatListLoading ? (
-                        <div className="opacity-100">
-                            <ChatListSkeleton />
-                        </div>
-                    ) : activeChatRooms.length === 0 ? (
-                        <div className='w-5/6 mx-auto flex flex-col justify-center items-center p-2 mt-[30%]'>
-                            <p className='text-anotherPrimary font-bold text-2xl '>
-                                Nothing Here
-                            </p>
-                            <p className='text-gray-600 font-semibold text-base'>
-                                There is no chat in your feed.
-                            </p>
-                            <p className='text-gray-600 font-semibold text-base'>
-                                Start a conversation
-                            </p>
-                        </div>
-                    ) : (
-                        activeChatRooms.map((chatRoom) => (
-                            <div
-                                className='flex items-center gap-4 p-2 cursor-pointer hover:bg-gray-100 rounded-xl relative'
-                                key={chatRoom._id}
-                                ref={menuRef}
-                                onContextMenu={(e) => handleChatMenuToggle(chatRoom._id, e)}
-                                onClick={
-                                    chatRoom?.isGroupChat
-                                        ? () => handleGroupChatClick(chatRoom)
-                                        : () => handleChatClick(chatRoom.receiver)
-                                }
-                            >
-                                {chatRoom?.isGroupChat ? (
-                                    <img
-                                        className='w-12 h-12 object-cover rounded-full border border-gray-300'
-                                        src={chatRoom?.groupIcon}
-                                        alt="profile picture"
-                                    />
-                                ) : (
-                                    <img
-                                        className='w-12 h-12 object-cover rounded-full border border-gray-300'
-                                        src={chatRoom?.receiver?.profile?.profilePic}
-                                        alt="profile picture"
-                                    />
-                                )}
-
-                                <div className='flex flex-col w-5/6 justify-center'>
-                                    <div className='flex justify-between w-full mb-0'>
-                                        {chatRoom?.isGroupChat ? (
-                                            <p className='text-anotherPrimary text-base font-medium truncate'>
-                                                {chatRoom?.name}
-                                            </p>
-                                        ) : (
-                                            <p className='text-anotherPrimary text-base font-medium truncate'>
-                                                {chatRoom?.receiver?.userName}
-                                            </p>
-                                        )}
-                                        <p className='text-xs text-font'>
-                                            {chatRoom?.lastMessage?.createdAt
-                                                ? format(new Date(chatRoom.lastMessage.createdAt), 'HH:mm')
-                                                : ''}
-                                        </p>
-                                    </div>
-
-                                    <div className='flex justify-between w-full mt-0'>
-                                        <p className='text-sm text-gray-600 truncate max-w-[70%]'>
-                                            {chatRoom?.lastMessage
-                                                ? chatRoom.lastMessage.sender === userId
-                                                    ? `You: ${chatRoom.lastMessage.content}`
-                                                    : chatRoom.lastMessage.content
-                                                : 'No messages yet ...'}
-                                        </p>
-
-                                        {chatRoom?.unreadMsgs > 0 && (
-                                            <p className='min-w-[20px] h-[20px] px-2 rounded-full text-xs font-semibold text-white bg-anotherPrimary text-center flex items-center justify-center'>
-                                                {chatRoom.unreadMsgs}
-                                            </p>
-                                        )}
-                                    </div>
-                                </div>
-
-                                {isChatMenuVisible === chatRoom?._id && (
-                                    <div className='absolute p-2 bg-white rounded-lg right-0 top-1/2 flex flex-col z-10'>
-                                        {!chatRoom?.isGroupChat && (
-                                            <p
-                                                className='text-anotherPrimary font-medium text-xs cursor-pointer'
-                                                onClick={() => deleteActiveChat(chatRoom._id)}
-                                            >
-                                                Delete
-                                            </p>
-                                        )}
-                                        <p className='text-anotherPrimary font-medium text-xs cursor-pointer'>
-                                            Pin to top
-                                        </p>
-                                        <p
-                                            className='text-anotherPrimary font-medium text-xs cursor-pointer'
-                                            onClick={() => clearAllMsgsForUser(chatRoom._id)}
-                                        >
-                                            Clear messages
-                                        </p>
-                                    </div>
-                                )}
-                            </div>
-                        ))
-                    )}
-                </div>
-            </div>
-
         </div>
 
-    );
+        {/* Search Bar */}
+        <div className='flex-shrink-0 px-3 md:px-4 pb-3 md:pb-4'>
+            <div className='relative'>
+                <FontAwesomeIcon 
+                    icon={faSearch} 
+                    className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm"
+                />
+                <input 
+                    type="text" 
+                    className='w-full pl-10 pr-4 py-2.5 md:py-3 text-sm bg-white rounded-full focus:outline-none focus:ring-2 focus:ring-anotherPrimary/20 text-gray-700 placeholder:text-gray-400 shadow-sm border border-gray-200' 
+                    onChange={(e) => setSearchChatRoom(e.target.value)} 
+                    placeholder='Search chats...' 
+                />
+            </div>
+        </div>
+
+        {/* Chat List - Scrollable */}
+        <div className='flex-1 overflow-y-auto scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-transparent px-2 md:px-3'>
+            {isProChatListLoading ? (
+                <div className="py-2">
+                    <ChatListSkeleton />
+                </div>
+            ) : activeChatRooms.length === 0 ? (
+                <div className='flex flex-col justify-center items-center text-center px-4 py-20'>
+                    <div className='w-20 h-20 md:w-24 md:h-24 rounded-full bg-gray-200 flex items-center justify-center mb-4'>
+                        <FontAwesomeIcon icon={faCommentDots} className='text-gray-400 text-3xl md:text-4xl' />
+                    </div>
+                    <p className='text-gray-800 font-bold text-lg md:text-xl mb-2'>
+                        No Chats Yet
+                    </p>
+                    <p className='text-gray-500 text-sm md:text-base'>
+                        Start a new conversation
+                    </p>
+                </div>
+            ) : (
+                <div className='space-y-0.5'>
+                    {activeChatRooms.map((chatRoom) => (
+                        <div
+                            key={chatRoom._id}
+                            className='group relative flex items-center gap-3 p-2.5 md:p-3 cursor-pointer hover:bg-gray-100 rounded-lg transition-colors'
+                            ref={menuRef}
+                            onContextMenu={(e) => handleChatMenuToggle(chatRoom._id, e)}
+                            onClick={
+                                chatRoom?.isGroupChat
+                                    ? () => handleGroupChatClick(chatRoom)
+                                    : () => handleChatClick(chatRoom.receiver)
+                            }
+                        >
+                            {/* Profile Picture */}
+                            <div className='relative flex-shrink-0'>
+                                <img
+                                    className='w-11 h-11 md:w-12 md:h-12 object-cover rounded-full border-2 border-gray-200'
+                                    src={
+                                        chatRoom?.isGroupChat 
+                                            ? chatRoom?.groupIcon 
+                                            : chatRoom?.receiver?.profile?.profilePic
+                                    }
+                                    alt="profile"
+                                />
+                                {/* Online indicator for non-group chats */}
+                                {!chatRoom?.isGroupChat && (
+                                    <div className='absolute bottom-0 right-0 w-3 h-3 bg-green-500 rounded-full border-2 border-white hidden'></div>
+                                )}
+                            </div>
+
+                            {/* Chat Info */}
+                            <div className='flex-1 min-w-0 flex flex-col gap-0.5'>
+                                {/* Top Row: Name and Time */}
+                                <div className='flex items-baseline justify-between gap-2'>
+                                    <h3 className='font-semibold text-sm md:text-base text-gray-900 truncate'>
+                                        {chatRoom?.isGroupChat 
+                                            ? chatRoom?.name 
+                                            : chatRoom?.receiver?.userName
+                                        }
+                                    </h3>
+                                    <span className='text-[10px] md:text-xs text-gray-500 flex-shrink-0'>
+                                        {chatRoom?.lastMessage?.createdAt
+                                            ? format(new Date(chatRoom.lastMessage.createdAt), 'HH:mm')
+                                            : ''}
+                                    </span>
+                                </div>
+
+                                {/* Bottom Row: Last Message and Badge */}
+                                <div className='flex items-center justify-between gap-2'>
+                                    <p className='text-xs md:text-sm text-gray-600 truncate flex-1'>
+                                        {chatRoom?.lastMessage
+                                            ? chatRoom.lastMessage.sender === userId
+                                                ? `You: ${chatRoom.lastMessage.content}`
+                                                : chatRoom.lastMessage.content
+                                            : 'No messages yet'}
+                                    </p>
+
+                                    {/* Unread Badge */}
+                                    {chatRoom?.unreadMsgs > 0 && (
+                                        <div className='flex-shrink-0 min-w-[18px] h-[18px] md:min-w-[20px] md:h-[20px] px-1.5 rounded-full bg-anotherPrimary flex items-center justify-center'>
+                                            <span className='text-[10px] md:text-xs font-bold text-white'>
+                                                {chatRoom.unreadMsgs > 99 ? '99+' : chatRoom.unreadMsgs}
+                                            </span>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+
+                            {/* Context Menu */}
+                            {isChatMenuVisible === chatRoom?._id && (
+                                <div 
+                                    className='absolute right-2 top-1/2 -translate-y-1/2 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-20 min-w-[140px]'
+                                    onClick={(e) => e.stopPropagation()}
+                                >
+                                    {!chatRoom?.isGroupChat && (
+                                        <button
+                                            className='w-full px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 transition-colors flex items-center gap-2'
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                deleteActiveChat(chatRoom._id);
+                                            }}
+                                        >
+                                            <FontAwesomeIcon icon={faTrash} className='text-red-500 text-xs' />
+                                            Delete
+                                        </button>
+                                    )}
+                                    <button className='w-full px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 transition-colors flex items-center gap-2'>
+                                        <FontAwesomeIcon icon={faThumbtack} className='text-anotherPrimary text-xs' />
+                                        Pin to top
+                                    </button>
+                                    <button
+                                        className='w-full px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 transition-colors flex items-center gap-2'
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            clearAllMsgsForUser(chatRoom._id);
+                                        }}
+                                    >
+                                        <FontAwesomeIcon icon={faBroom} className='text-anotherPrimary text-xs' />
+                                        Clear messages
+                                    </button>
+                                </div>
+                            )}
+                        </div>
+                    ))}
+                </div>
+            )}
+        </div>
+    </div>
+);
 }
 
 export default ChatListing;

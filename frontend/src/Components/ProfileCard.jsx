@@ -5,7 +5,7 @@ import { useNavigate } from 'react-router-dom';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faTimes, faArrowRight } from '@fortawesome/free-solid-svg-icons';
 
-function profileCard({ profileCardToggle, profileData: initialProfileData }) {
+function ProfileCard({ profileCardToggle, profileData: initialProfileData ,setMobileActiveTab }) {
     const [profileData, setProfileData] = useState(initialProfileData);
     const [initialProfilePic, setInitialProfilepic] = useState('');
     const [loading, setLoading] = useState(false);
@@ -17,7 +17,7 @@ function profileCard({ profileCardToggle, profileData: initialProfileData }) {
             console.log(err);
         }
 
-    })
+    }, [initialProfileData])
 
     let profilePicVar;
 
@@ -83,9 +83,17 @@ function profileCard({ profileCardToggle, profileData: initialProfileData }) {
         }
     }
 
+    const handleClose = () => {
+    profileCardToggle(); // Close the update modal
+    // If on mobile, ensure we stay on profile tab (don't go back to chats)
+    if (window.innerWidth < 768 && setMobileActiveTab) {
+      // Do nothing - stay on profile tab
+    }
+  };
+
     return (
-        <div className='absolute flex justify-center items-center w-full bg-gray backdrop-blur-md h-full z-20'>
-            <div className=' w-1/3 p-5 bg-white rounded-2xl shadow-2xl  border-gray-200'>
+        <div className='fixed inset-0 flex justify-center items-center w-full bg-black/20 backdrop-blur-md z-50 p-4'>
+            <div className='w-[92vw] max-w-md p-5 bg-white rounded-2xl shadow-2xl border border-gray-200'>
                 <div className='flex justify-between ' onClick={profileCardToggle}>
                     <div className='flex gap-1 items-center'>
                         <p className='text-xl font-bold'>Profile</p>
@@ -130,11 +138,17 @@ function profileCard({ profileCardToggle, profileData: initialProfileData }) {
 
 
                         {loading ? (
-                            <div className='m-4 py-1 text-base w-1/4 font-semibold bg-anotherPrimary rounded-md text-white'>
+                            <div className='m-4 py-2 text-base w-full font-semibold bg-anotherPrimary rounded-md text-white text-center'>
                                 <div className="loader w-full text-center">Updating...</div>
                             </div>
                         ) : (
-                            <button disabled={loading} type='submit' className=' m-4 py-1  text-base w-1/4 font-semibold bg-anotherPrimary rounded-md text-white'>Update</button>
+                            <button
+                                disabled={loading}
+                                type='submit'
+                                className='m-4 py-2 text-base w-full font-semibold bg-anotherPrimary rounded-md text-white'
+                            >
+                                Update
+                            </button>
                         )}
                     </form>
                 </div>
@@ -144,4 +158,4 @@ function profileCard({ profileCardToggle, profileData: initialProfileData }) {
     )
 }
 
-export default profileCard
+export default ProfileCard

@@ -60,6 +60,7 @@ function MessageSecCS({
 
     return (
         <>
+         
             {currentChatRoom?.isAllowed === false && (
                 <div className="bg-red-100 text-red-700 text-sm p-2 text-center">
                     {accessMessage}
@@ -68,7 +69,7 @@ function MessageSecCS({
             <div
                 ref={chatContainerRef}
                 onScroll={handleScroll}
-                className=' h-[83%] bg-white overflow-y-scroll  scrollbar-thin scrollbar-thumb-white scrollbar-track-white rounded-r-xl p-4  flex flex-col gap-0.5'
+                 className="p-4 flex flex-col gap-0.5"
             >
 
                 {isMessagesLoading ?
