@@ -138,8 +138,7 @@ io.on('connection', async (socket) => {
     // });
 
     socket.on("ack-Delivered", async ({ messageId, senderId, chatRoomId }) => {
-        console.log('dont worry you are coming here');
-        console.log("ACK reached server for:", messageId);
+      
         const updated = await Message.findByIdAndUpdate(
             messageId,
             { $addToSet: { deliveredTo: userId } },
@@ -147,7 +146,6 @@ io.on('connection', async (socket) => {
         );
 
 
-        console.log("Emitting msgDelivered to:", senderId);
 
         io.to(senderId).emit("msgDelivered", {
             messageId: updated._id,
@@ -168,7 +166,6 @@ io.on('connection', async (socket) => {
             },
             { $addToSet: { readBy: userId } }
         );
-        console.log('idhar ho tum');
         io.to(chatRoomId).emit("msgsRead", { chatRoomId, readerId: userId });
     });
 

@@ -23,15 +23,12 @@ function Signup() {
 
     const handleSubmit = async (e) => {
         e.preventDefault();
-        console.log(formData);
         try {
             const response = await api.post('/api/auth/signup', formData, {
                 headers: {"Content-Type" : "application/json"},
                 withCredentials:true
             })
-            console.log('bye');
             if (response.data.success) {
-                console.log(response.data.message);
                  navigate('/login');
             }
         } catch (err) {

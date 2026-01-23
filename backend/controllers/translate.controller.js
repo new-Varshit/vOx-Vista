@@ -2,8 +2,7 @@ import axios from 'axios';
 
 export const translateMsg = async (req, res) => {
     const { message, targetLanguage } = req.body
-    console.log(message);
-    console.log(targetLanguage);
+   
 
     const subscriptionKey = process.env.TRANSLATOR_SUBSCRIPTION_KEY;
     const endpoint = process.env.TRANSLATOR_ENDPOINT;
@@ -25,7 +24,6 @@ export const translateMsg = async (req, res) => {
 
         // Extract the translated text from the response
         const translatedText = response.data[0]?.translations[0]?.text;
-        console.log(translatedText);
 
 
         if (!translatedText) {

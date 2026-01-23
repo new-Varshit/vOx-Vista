@@ -15,7 +15,6 @@ export const updateProfile = async (req, res) => {
     });
     profilePic = cloudResponse.secure_url;
   }
-        console.log("you are in updateprofiie",profilePic);
   const userId = req.id.userId;
  
     const updatedProfile = await User.findByIdAndUpdate(userId, {

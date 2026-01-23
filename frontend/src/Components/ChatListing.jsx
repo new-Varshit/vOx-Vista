@@ -6,7 +6,7 @@ import { setCurrentChatRoom } from '../store/chatRoomSlice';
 // import userId from '../utils/UserId';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import api from '../utils/Api';
-import { faSearch, faArrowRight, faPlus } from '@fortawesome/free-solid-svg-icons';
+import { faSearch, faArrowRight, faPlus , faCommentDots} from '@fortawesome/free-solid-svg-icons';
 
 // import userId from '../utils/UserId';
 import ChatListSkeleton from './ChatListSkeleton';
@@ -73,13 +73,11 @@ function ChatListing({ setIsMobileChatOpen, registerFetch, isProChatListLoading,
     }
 
     const deleteActiveChat = async (chatId) => {
-        console.log(chatId);
         try {
             const response = await api.post(`/api/chatroom/dltChatRoom/${chatId}`, null, {
                 withCredentials: true
             })
             if (response.data.success) {
-                console.log(response.data.message);
                 setActiveChatRooms(prevChat => prevChat.filter(chatRoom => chatRoom._id != chatId));
                 setIsChatMenuVisible(null);
 
@@ -99,7 +97,6 @@ function ChatListing({ setIsMobileChatOpen, registerFetch, isProChatListLoading,
                 withCredentials: true
             })
             if (response.data.success) {
-                console.log(response.data.message);
                 setIsChatMenuVisible(null);
             }
         } catch (err) {
@@ -116,9 +113,7 @@ function ChatListing({ setIsMobileChatOpen, registerFetch, isProChatListLoading,
 
     const fetchChatRooms = async () => {
         try {
-            console.log('hello');
             if (searchChatRoom.trim()) {
-                console.log();
                 const response = await api.get('/api/chatRoom/searchActiveChatRoom', {
                     params: { searchChatRoom },
                     withCredentials: true
@@ -140,9 +135,9 @@ function ChatListing({ setIsMobileChatOpen, registerFetch, isProChatListLoading,
     }
 
     useEffect(()=>{
-        if(searchChatRoom.trim()){
+        
             fetchChatRooms();
-        }
+        
     },[searchChatRoom]);
 
 

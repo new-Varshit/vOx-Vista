@@ -84,14 +84,12 @@ function NewChatSearch({ newChatCard }) {
 
     const handleSubmitGrpDetail = async (e) => {
         e.preventDefault();
-        console.log(' Icon :  ',grpDetail.groupIcon);
 
         const formObj = new FormData();
         formObj.append('name', grpDetail.name); // Append group name
         formObj.append('groupIcon', grpDetail.groupIcon.inputIcon); // Append group icon
         formObj.append('members', JSON.stringify(members)); // Append members array as JSON string
     
-        console.log('Form Data:', [...formObj]);
         try {
             const response = await api.post('/api/chatRoom/groupChat', formObj, {
                 headers: { "content-type": "multipart/form-data" },

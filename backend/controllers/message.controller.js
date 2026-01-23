@@ -71,7 +71,6 @@ export const sendMessage = async (req, res) => {
         deletedFor: []
       }
     });
-                console.log('yoo hoo');
     if (isFirstMessage) {
       const receiver = chatRoom.members.find(
         m => m._id.toString() !== senderId.toString()
@@ -83,7 +82,6 @@ export const sendMessage = async (req, res) => {
         lastMessage: message,
         unreadMsgs: 0
       }
-           console.log('first Message');
       
       chatRoom.members.forEach(mem => {
           io.to(mem._id.toString()).emit("newChatRoom",{

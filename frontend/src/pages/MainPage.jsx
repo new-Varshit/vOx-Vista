@@ -113,7 +113,6 @@ function MainPage() {
         const socket = socketRef.current;
 
         const handleGlobalDelivery = async (message) => {
-            console.log('handleglobaldelivery')
             if (message?.sender?._id === userId) return;
 
             setActiveChatRooms(prev => {
@@ -140,13 +139,11 @@ function MainPage() {
                 isRead: currentChatRoomRef.current?._id === message?.chatRoom?._id
             });
 
-            console.log("ACK sent for:", message._id);
 
         };
 
 
         const handleGlobalDeliveredUI = ({ messageId, senderId, deliveredtoId }) => {
-            console.log('inside msgsDelivered event');
 
 
             if (senderId !== userId) return;
@@ -173,9 +170,7 @@ function MainPage() {
 
 
         const handleBulkmsgDelivered = async ({ deliveredtoId }) => {
-            console.log('hello there');
             if (deliveredtoId === userId) return;
-            console.log('hello there 2');
             try {
                 setMessages(prev =>
                     prev.map(msg => {
@@ -192,9 +187,7 @@ function MainPage() {
         }
 
         const handleUnreadCountZero = async ({ chatRoomId, readerId }) => {
-            console.log('1');
             if (readerId !== userId) return; // only me
-            console.log('2');
             try {
                 setActiveChatRooms(prev =>
                     prev.map(room =>
@@ -236,7 +229,6 @@ function MainPage() {
         }
 
         const handleGrpAddition = ({ newGrpChat }) => {
-            console.log('Grp addition', newGrpChat);
 
             try {
                 setActiveChatRooms(prev => {

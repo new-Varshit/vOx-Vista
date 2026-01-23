@@ -31,7 +31,6 @@ function Translation() {
                 if (response.data.success) {
                     const langData = response.data.langData;
                     setLanguages(Object.entries(langData));
-                    console.log(langData);
                 }
             } catch (error) {
                 console.error('Error fetching languages:', error);

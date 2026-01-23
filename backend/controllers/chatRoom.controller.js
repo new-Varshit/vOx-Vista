@@ -297,7 +297,6 @@ export const addMember = async (req, res) => {
             }
         });
 
-        console.log('updatedGroup members', updatedGroup.members);
 
         // 3️⃣ Create and broadcast system messages
         for (const memId of members) {
@@ -319,7 +318,6 @@ export const addMember = async (req, res) => {
 
 
             for (const upMemId of updatedGroup.members) {
-                console.log('upMemId', upMemId);
                 io.to(upMemId._id.toString()).emit("receiveMessage", systemMsg);
 
                 io.to(upMemId._id.toString()).emit("incrementUnread", { chatRoomId, message: systemMsg });

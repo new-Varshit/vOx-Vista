@@ -67,7 +67,6 @@ function ProfileCard({ profileCardToggle, profileData: initialProfileData ,setMo
         }
 
         try {
-            console.log(profileData);
             const response = await api.post('/api/user/updateProfile', profileDataObj, {
                 headers: { "content-type": "multipart/form-data" },
                 withCredentials: true

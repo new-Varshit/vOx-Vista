@@ -469,7 +469,6 @@ function ChatSection({
     } else {
       setSelectedMsgs([...selectedMsgs, id]);
     }
-    console.log(selectedMsgs)
   };
 
 
@@ -495,7 +494,6 @@ function ChatSection({
     try {
       let response;
 
-      console.log('selected msgs: ', selectedMsgs);
 
       if (msgId && selectedMsgs.length === 0) {
         response = await api.post('/api/message/deleteSelectedMsgs', { selectedMsgs: [msgId] }, {
@@ -508,12 +506,9 @@ function ChatSection({
       }
 
       if (response.data.success) {
-        console.log('done bhai ');
         if (typeof msgId === 'string') {
-          console.log(msgId)
           setMessages(prevMsgs => prevMsgs.filter(mssg => mssg._id !== msgId));
         } else {
-          console.log('yo you selected msgs to delete')
           setMessages(prevMsgs => prevMsgs.filter(mssg => !selectedMsgs.includes(mssg._id)));
           handleCancelSelection();
         }
@@ -526,14 +521,11 @@ function ChatSection({
 
   //deleting single message 
   const handleSingleMsgDeletion = (msg) => {
-    console.log(msg.sender);
-    console.log(userId);
+   
     if (msg.sender._id === userId) {
-      console.log('yo');
       delOptCardToggle(msg._id);
       setMessages(prevMsgs => prevMsgs.filter(mssg => mssg._id !== msg._id));
     } else {
-      console.log('hey');
       deleteSelectedMsgs(msg._id);
     }
   }
