@@ -2,6 +2,8 @@
 
 **Break language barriers, connect the world.**
 
+🔗 **Live Demo:** https://vox-vista.vercel.app
+
 VoxVista is a real-time multilingual chat application that enables seamless communication across languages. Combining modern messaging features with instant translation, VoxVista helps users connect globally without language barriers.
 
 ## 🖼 Screenshots
