@@ -521,7 +521,7 @@ function ChatSection({
 
   //deleting single message 
   const handleSingleMsgDeletion = (msg) => {
-   
+
     if (msg.sender._id === userId) {
       delOptCardToggle(msg._id);
       setMessages(prevMsgs => prevMsgs.filter(mssg => mssg._id !== msg._id));
@@ -586,11 +586,21 @@ function ChatSection({
         </div>
       ) : (
         <div className="w-full h-full flex justify-center items-center bg-white">
-          <div className="flex flex-col justify-center items-center gap-2">
-            <p className="font-bold text-5xl text-anotherPrimary">vOx-Vista</p>
-            <p className="font-medium text-xl">Your chat will appear here....</p>
-          </div>
-        </div>
+  <div className="flex flex-col justify-center items-center gap-2 opacity-80">
+    <img
+      src="/logo.png"
+      alt="VoxVista"
+      className="w-24 h-auto object-contain"
+    />
+    <p className="font-bold text-4xl text-anotherPrimary tracking-wide">
+      VoxVista
+    </p>
+    <p className="font-medium text-lg text-gray-500">
+      Your chat will appear here...
+    </p>
+  </div>
+</div>
+
       )}
     </>
   )
