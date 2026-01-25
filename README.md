@@ -9,11 +9,15 @@ VoxVista is a real-time multilingual chat application that enables seamless comm
 ### Desktop View
 
 ![Signup Page](/screenshots/signup.png)
+
 ![Login Page](/screenshots/login.png)
+
 ![Chat Listing](/screenshots/chatlisting.png)
+
 ![Chat Section with Language Selection](/screenshots/chatSectionWLangSelOpt.png)
+
 ![Side Profile Section](/screenshots/sideProfileSection.png)
-![Translated Messages](/screenshots/translatedMsgs.png)
+
 
 ---
 
