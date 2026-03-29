@@ -4,6 +4,7 @@ const HF_INFERENCE = "https://api-inference.huggingface.co/models";
 
 const ENGLISH_MODEL = "unitary/toxic-bert";
 const HINDI_HINGLISH_MODEL = "l3cube-pune/hindi-abusive-bert";
+const LOCAL_TOXICITY_URL = process.env.TOXICITY_URL;
 
 /**
  * Single-sequence classification row: [{ label, score }, ...]
@@ -87,15 +88,54 @@ async function hfModelMaxScore(modelPath, text, token) {
   return maxScoreFromHFResponse(data);
 }
 
+export function isToxicityConfigured() {
+  return Boolean(LOCAL_TOXICITY_URL || process.env.HF_TOKEN);
+}
+
+async function localServiceScore(text) {
+  if (!LOCAL_TOXICITY_URL) return null;
+
+  const { data, status } = await axios.post(
+    LOCAL_TOXICITY_URL,
+    { text },
+    {
+      timeout: 10000,
+      validateStatus: () => true,
+    }
+  );
+
+  if (status >= 400 || !data) {
+    console.warn(`Local toxicity service HTTP ${status}`);
+    return null;
+  }
+
+  const score = Number(data?.score);
+  if (!Number.isFinite(score)) return null;
+  return Math.max(0, Math.min(1, score));
+}
+
 /**
  * English (toxic-bert) + Hindi/Hinglish (hindi-abusive-bert) in parallel via Hugging Face Inference API.
  * Returns max(englishScore, hindiScore) in [0, 1]. Per-model failures contribute 0 (fail-open).
  */
 export async function getToxicityMaxScore(text) {
   const token = process.env.HF_TOKEN;
-  if (!token || !text?.trim()) return 0;
+  if (!text?.trim()) return 0;
 
   const input = text.trim().slice(0, 512);
+
+  // Prefer local self-hosted service if configured
+  if (LOCAL_TOXICITY_URL) {
+    try {
+      const localScore = await localServiceScore(input);
+      if (typeof localScore === "number") return localScore;
+    } catch (err) {
+      console.error("Local toxicity service error:", err.message);
+    }
+  }
+
+  // Fallback to HF provider
+  if (!token) return 0;
 
   try {
     const [englishScore, hindiScore] = await Promise.all([
