@@ -6,7 +6,7 @@ import { setCurrentChatRoom } from '../store/chatRoomSlice';
 // import userId from '../utils/UserId';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import api from '../utils/Api';
-import { faSearch, faArrowRight, faPlus , faCommentDots} from '@fortawesome/free-solid-svg-icons';
+import { faSearch, faArrowRight, faPlus , faCommentDots, faThumbtack, faBroom} from '@fortawesome/free-solid-svg-icons';
 
 // import userId from '../utils/UserId';
 import ChatListSkeleton from './ChatListSkeleton';
@@ -31,6 +31,29 @@ function ChatListing({ setIsMobileChatOpen, registerFetch, isProChatListLoading,
     const dispatch = useDispatch();
 
    const userId = getUserId();
+
+   const getLastMessagePreview = (chatRoom) => {
+    const lastMessage = chatRoom?.lastMessage;
+    if (!lastMessage) return 'No messages yet';
+
+    const senderIsMe = lastMessage?.sender ? String(lastMessage.sender) === String(userId) : false;
+    const content = (lastMessage?.content || '').trim();
+
+    if (content) {
+      return senderIsMe ? `You: ${content}` : content;
+    }
+
+    const attachments = Array.isArray(lastMessage?.attachments) ? lastMessage.attachments : [];
+    const hasAudio = attachments.some((att) => String(att?.mimeType || '').startsWith('audio/'));
+    if (hasAudio) {
+      return senderIsMe ? `You: 🎤 Voice message` : '🎤 Voice message';
+    }
+    if (attachments.length > 0) {
+      return senderIsMe ? `You: 📎 Attachment` : '📎 Attachment';
+    }
+
+    return senderIsMe ? 'You: ' : '';
+  };
 
     const handleChatClick = async (newChat) => {
         setActiveChatRooms(prev =>
@@ -258,12 +281,8 @@ return (
 
                                 {/* Bottom Row: Last Message and Badge */}
                                 <div className='flex items-center justify-between gap-2'>
-                                    <p className='text-xs md:text-sm text-gray-600 truncate flex-1'>
-                                        {chatRoom?.lastMessage
-                                            ? chatRoom.lastMessage.sender === userId
-                                                ? `You: ${chatRoom.lastMessage.content}`
-                                                : chatRoom.lastMessage.content
-                                            : 'No messages yet'}
+                                    <p className='text-xs md:text-sm text-gray-600 truncate flex-1 min-w-0 w-0'>
+                                      {getLastMessagePreview(chatRoom)}
                                     </p>
 
                                     {/* Unread Badge */}

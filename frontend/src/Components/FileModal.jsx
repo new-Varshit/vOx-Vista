@@ -21,11 +21,16 @@ function FileModal({ fileToShow, onClose }) {
                         className="w-auto h-auto max-w-full max-h-full object-contain"
                     />
                 )}
+                {fileToShow?.mimeType?.startsWith("audio/") && (
+                    <div className="bg-white rounded-lg p-4">
+                        <audio src={fileToShow.url} controls className="w-[320px] max-w-full" />
+                    </div>
+                )}
                 {fileToShow?.mimeType?.startsWith('application/') && (
                     <div className="w-full h-full bg-white rounded">
                         <iframe
                             src={fileToShow.url}
-                            frameborder="0"
+                            frameBorder="0"
                             className="w-full h-full"
                             target="_blank"
                             style={{ height: "90vh", width: "100vw" }}

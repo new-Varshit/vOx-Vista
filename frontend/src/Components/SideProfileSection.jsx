@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import {
   faPhone,
@@ -12,15 +12,17 @@ import {
   faBan,
   faArrowLeft
 } from '@fortawesome/free-solid-svg-icons';
-import { useSelector } from 'react-redux';
-import { jwtDecode } from 'jwt-decode';
+import { useSelector, useDispatch } from 'react-redux';
+import { setCurrentChatRoom } from '../store/chatRoomSlice';
 import api from '../utils/Api';
 import  { getUserId } from '../utils/UserId';
 
 
-function SideProfileSection({setIsSearchNewMember,setIsGroupInfoCardVisible,setIsConfirmMemRemoval ,setSelectedMember , setIsConfirmExitGrp , setIsConfirmDltGrp , setIsSideProfileCard}) {
+function SideProfileSection({setIsSearchNewMember,setIsGroupInfoCardVisible,setIsConfirmMemRemoval ,setSelectedMember , setIsConfirmExitGrp , setIsConfirmDltGrp , setIsSideProfileCard, onStartAudioCall, onStartVideoCall}) {
   const currentChat = useSelector((state) => state.chat.currentChat);
   const currentChatRoom = useSelector((state) => state.chatRoom.currentChatRoom);
+  const dispatch = useDispatch();
+  const [modSaving, setModSaving] = useState(false);
 
   // const token = localStorage.getItem('token');
   // const decodedToken = jwtDecode(token);
@@ -29,6 +31,26 @@ function SideProfileSection({setIsSearchNewMember,setIsGroupInfoCardVisible,setI
   const userId = getUserId();
 
   const isAdmin = String(currentChatRoom?.admin) === String(userId);
+
+  const toggleModeration = async () => {
+    if (!currentChatRoom?._id || modSaving) return;
+    setModSaving(true);
+    try {
+      const next = !currentChatRoom.moderationEnabled;
+      const res = await api.post(
+        "/api/chatRoom/moderation",
+        { chatRoomId: currentChatRoom._id, moderationEnabled: next },
+        { withCredentials: true }
+      );
+      if (res.data.success) {
+        dispatch(setCurrentChatRoom({ ...currentChatRoom, moderationEnabled: next }));
+      }
+    } catch (e) {
+      console.log(e);
+    } finally {
+      setModSaving(false);
+    }
+  };
 
  
   
@@ -81,10 +103,18 @@ function SideProfileSection({setIsSearchNewMember,setIsGroupInfoCardVisible,setI
 
         {!currentChatRoom?.isGroupChat && (
           <div className="flex gap-2 mt-1 md:mt-2">
-            <button className="w-8 h-8 md:w-9 md:h-9 rounded-full bg-white border border-gray-300 hover:bg-gray-100 transition flex items-center justify-center">
+            <button
+              className="w-8 h-8 md:w-9 md:h-9 rounded-full bg-white border border-gray-300 hover:bg-gray-100 transition flex items-center justify-center"
+              onClick={onStartAudioCall}
+              type="button"
+            >
               <FontAwesomeIcon icon={faPhone} className="text-xs md:text-sm" />
             </button>
-            <button className="w-8 h-8 md:w-9 md:h-9 rounded-full bg-white border border-gray-300 hover:bg-gray-100 transition flex items-center justify-center">
+            <button
+              className="w-8 h-8 md:w-9 md:h-9 rounded-full bg-white border border-gray-300 hover:bg-gray-100 transition flex items-center justify-center"
+              onClick={onStartVideoCall}
+              type="button"
+            >
               <FontAwesomeIcon icon={faVideo} className="text-xs md:text-sm" />
             </button>
           </div>
@@ -134,6 +164,31 @@ function SideProfileSection({setIsSearchNewMember,setIsGroupInfoCardVisible,setI
             <FontAwesomeIcon icon={faPen} className="text-xs md:text-sm" />
             Edit Group Info
           </button>
+
+          <div className="flex items-center justify-between gap-3 bg-white border border-gray-200 rounded-md px-3 py-2.5">
+            <div className="flex flex-col min-w-0">
+              <span className="text-xs md:text-sm font-semibold text-gray-800">Enable Toxicity Filter</span>
+              <span className="text-[10px] md:text-xs text-gray-500">
+                Block or warn on potentially abusive messages (groups only)
+              </span>
+            </div>
+            <button
+              type="button"
+              disabled={modSaving}
+              role="switch"
+              aria-checked={Boolean(currentChatRoom?.moderationEnabled)}
+              onClick={toggleModeration}
+              className={`relative inline-flex h-7 w-12 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-anotherPrimary focus:ring-offset-2 disabled:opacity-50 ${
+                currentChatRoom?.moderationEnabled ? "bg-anotherPrimary" : "bg-gray-300"
+              }`}
+            >
+              <span
+                className={`pointer-events-none inline-block h-6 w-6 transform rounded-full bg-white shadow ring-0 transition duration-200 ${
+                  currentChatRoom?.moderationEnabled ? "translate-x-5" : "translate-x-0.5"
+                }`}
+              />
+            </button>
+          </div>
         </div>
       )}
 

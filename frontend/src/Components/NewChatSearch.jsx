@@ -18,6 +18,7 @@ function NewChatSearch({ newChatCard }) {
     const [newGrpMode, setNewGrpMode] = useState(false);
     const [members, setMembers] = useState([]);
     const [isGrpDetailForm, setIsGrpDetailForm] = useState(false);
+    const [loading, setLoading] = useState(false);
     const [grpDetail, setGrpDetail] = useState({
         groupIcon: null,
         name: '',
@@ -40,6 +41,7 @@ function NewChatSearch({ newChatCard }) {
     }
 
     const handleChatClick = async (newChat) => {
+
         newChatCard();
         dispatch(setCurrentChat(newChat));
         let recipientID = newChat._id;
@@ -84,12 +86,13 @@ function NewChatSearch({ newChatCard }) {
 
     const handleSubmitGrpDetail = async (e) => {
         e.preventDefault();
+        setLoading(true);
 
         const formObj = new FormData();
         formObj.append('name', grpDetail.name); // Append group name
         formObj.append('groupIcon', grpDetail.groupIcon.inputIcon); // Append group icon
         formObj.append('members', JSON.stringify(members)); // Append members array as JSON string
-    
+
         try {
             const response = await api.post('/api/chatRoom/groupChat', formObj, {
                 headers: { "content-type": "multipart/form-data" },
@@ -102,15 +105,16 @@ function NewChatSearch({ newChatCard }) {
             }
         } catch (err) {
             console.log(err);
+        } finally {
+            setLoading(false);
         }
-        console.log('submitted...')
     }
 
 
     const handleIconInputChange = (event) => {
 
         const inputIcon = event.target.files[0];
-        console.log('input icon before :',inputIcon);
+        console.log('input icon before :', inputIcon);
 
 
         if (inputIcon && inputIcon.type.startsWith('image/')) {
@@ -118,7 +122,7 @@ function NewChatSearch({ newChatCard }) {
                 inputIcon,
                 preview: URL.createObjectURL(inputIcon) // Added correct property name "preview"
             };
-            console.log('input icon after :',iconWithPreview)
+            console.log('input icon after :', iconWithPreview)
             setGrpDetail(prevData => ({
                 ...prevData,
                 [event.target.name]: iconWithPreview
@@ -163,109 +167,124 @@ function NewChatSearch({ newChatCard }) {
     }, [searchInput]);
 
 
-  return (
-    <div className='fixed inset-0 w-full h-full bg-black/20 z-50 flex items-center justify-center p-4' onClick={handleClick}>
-        <div className='w-[92vw] max-w-md h-[75vh] bg-gray-200 p-4 flex flex-col gap-3 rounded-lg'>
-            <div className='flex justify-between items-center flex-shrink-0'>
-                <div className='flex gap-2 items-center'>
-                    {newGrpMode && <FontAwesomeIcon icon={faArrowLeft} className='text-base' onClick={handleGrpMode} />}
-                    <p className='font-semibold text-lg'>{newGrpMode ? 'New Group' : 'New Chat'}</p>
-                    {!newGrpMode && <FontAwesomeIcon icon={faArrowRight} className='text-base' />}
-                </div>
-                {newGrpMode &&
-                    <div>
-                        <p className='font-semibold'>{`selected(${members?.length})`}</p>
+    return (
+        <div className='fixed inset-0 w-full h-full bg-black/20 z-50 flex items-center justify-center p-4' onClick={handleClick}>
+            <div className='w-[92vw] max-w-md h-[75vh] bg-gray-200 p-4 flex flex-col gap-3 rounded-lg'>
+                <div className='flex justify-between items-center flex-shrink-0'>
+                    <div className='flex gap-2 items-center'>
+                        {newGrpMode && <FontAwesomeIcon icon={faArrowLeft} className='text-base' onClick={handleGrpMode} />}
+                        <p className='font-semibold text-lg'>{newGrpMode ? 'New Group' : 'New Chat'}</p>
+                        {!newGrpMode && <FontAwesomeIcon icon={faArrowRight} className='text-base' />}
                     </div>
-                }
-            </div>
-
-            <div className='flex flex-col gap-3 flex-shrink-0'>
-                {!isGrpDetailForm &&
-                    <input className='rounded-full py-2 px-4 text-sm w-full focus:outline-none text-gray-600' type="text" placeholder='Search email or username' onChange={(e) => setSearchInput(e.target.value)} />
-                }
-                {!newGrpMode && !isGrpDetailForm &&
-                    <div className='flex gap-3 items-center px-3 hover:bg-blue-300 py-1 rounded-md cursor-pointer' onClick={() => setNewGrpMode(!newGrpMode)}>
-                        <FontAwesomeIcon icon={faUserFriends} className='text-xl text-anotherPrimary border-anotherPrimary rounded-full p-1' />
-                        <p className='text-sm font-medium text-anotherPrimary'>New group</p>
-                    </div>
-                }
-
-                {isGrpDetailForm &&
-                    <form className='flex flex-col gap-2 mt-[5%]' onSubmit={(e) => handleSubmitGrpDetail(e)}>
+                    {newGrpMode &&
                         <div>
-                            <div onClick={handleCameraClick} className='flex justify-center items-center gap-5'>
-                                <div className='border-[1px] border-anotherPrimary flex justify-center items-center rounded-full w-[15%] aspect-square overflow-hidden'>
-                                    {grpDetail?.groupIcon ? (
-                                        <img
-                                            src={grpDetail?.groupIcon?.preview}
-                                            alt="Group Icon"
-                                            className="w-full h-full object-cover rounded-full"
-                                        />
-                                    ) : (
-                                        <FontAwesomeIcon
-                                            icon={faCamera}
-                                            className='text-4xl text-anotherPrimary'
-                                        />
-                                    )}
-                                </div>
-                                <label htmlFor="groupIcon" className='text-base font-medium text-gray-600'>Add a group icon</label>
-                            </div>
-                            <input type="file" className='hidden' accept="image/*" ref={iconInputRef} name='groupIcon' required onChange={(e) => handleIconInputChange(e)} />
+                            <p className='font-semibold'>{`selected(${members?.length})`}</p>
                         </div>
-                        <div className='flex flex-col gap-1'>
-                            <label htmlFor="name" className='text-sm font-medium text-gray-600'>Provide a group name:</label>
-                            <input type="text" placeholder='Group name...' name='name' className='text-xs p-2 focus:outline-none text-gray-600 rounded-lg' value={grpDetail?.name} onChange={handleInputGrpNameChange} />
+                    }
+                </div>
+
+                <div className='flex flex-col gap-3 flex-shrink-0'>
+                    {!isGrpDetailForm &&
+                        <input className='rounded-full py-2 px-4 text-sm w-full focus:outline-none text-gray-600' type="text" placeholder='Search email or username' onChange={(e) => setSearchInput(e.target.value)} />
+                    }
+                    {!newGrpMode && !isGrpDetailForm &&
+                        <div className='flex gap-3 items-center px-3 hover:bg-blue-300 py-1 rounded-md cursor-pointer' onClick={() => setNewGrpMode(!newGrpMode)}>
+                            <FontAwesomeIcon icon={faUserFriends} className='text-xl text-anotherPrimary border-anotherPrimary rounded-full p-1' />
+                            <p className='text-sm font-medium text-anotherPrimary'>New group</p>
                         </div>
-                        <button ref={btnRef} type='submit'></button>
-                    </form>
-                }
+                    }
 
-                {members.length > 0 && (
-                    <div className='flex justify-evenly items-center'>
-                        <button className='px-2 text-sm font-medium text-center py-1 w-[47%] rounded-md hover:bg-blue-500 bg-anotherPrimary text-white' onClick={isGrpDetailForm ? handleSubmitBtnClick : () => setIsGrpDetailForm(true)}>
-                            {isGrpDetailForm ? 'Create' : 'Next'}
-                        </button>
-                        <button onClick={handleGrpMode} className='px-2 text-sm font-medium text-center rounded-md py-1 w-[47%] hover:bg-b-100 bg-white text-anotherPrimary'>
-                            Cancel
-                        </button>
-                    </div>
-                )}
-            </div>
-
-            {/* Results section - Takes remaining space */}
-            <div className='flex-1 min-h-0 overflow-hidden'>
-                {!isGrpDetailForm && (
-                    newChats.length === 0 ? (
-                        <div className='h-full flex flex-col gap-2 justify-center items-center'>
+                    {isGrpDetailForm &&
+                        <form className='flex flex-col gap-2 mt-[5%]' onSubmit={(e) => handleSubmitGrpDetail(e)}>
                             <div>
-                                <FontAwesomeIcon icon={newGrpMode ? faUserFriends : faSearch} className='text-7xl text-font' />
+                                <div onClick={handleCameraClick} className='flex justify-center items-center gap-5'>
+                                    <div className='border-[1px] border-anotherPrimary flex justify-center items-center rounded-full w-[15%] aspect-square overflow-hidden'>
+                                        {grpDetail?.groupIcon ? (
+                                            <img
+                                                src={grpDetail?.groupIcon?.preview}
+                                                alt="Group Icon"
+                                                className="w-full h-full object-cover rounded-full"
+                                            />
+                                        ) : (
+                                            <FontAwesomeIcon
+                                                icon={faCamera}
+                                                className='text-4xl text-anotherPrimary'
+                                            />
+                                        )}
+                                    </div>
+                                    <label htmlFor="groupIcon" className='text-base font-medium text-gray-600'>Add a group icon</label>
+                                </div>
+                                <input type="file" className='hidden' accept="image/*" ref={iconInputRef} name='groupIcon' required onChange={(e) => handleIconInputChange(e)} />
                             </div>
-                            <p className='text-gray-600 font-semibold text-sm text-center px-4'>
-                                {message || (newGrpMode ? 'Search for group members using Email or Username...' : 'Search for new chats using Email or Username...')}
-                            </p>
+                            <div className='flex flex-col gap-1'>
+                                <label htmlFor="name" className='text-sm font-medium text-gray-600'>Provide a group name:</label>
+                                <input type="text" placeholder='Group name...' name='name' className='text-xs p-2 focus:outline-none text-gray-600 rounded-lg' value={grpDetail?.name} onChange={handleInputGrpNameChange} />
+                            </div>
+                            <button ref={btnRef} type='submit'></button>
+                        </form>
+                    }
+
+                    {members.length > 0 && (
+                        <div className='flex justify-evenly items-center'>
+                            <button
+                                className={`px-2 text-sm font-medium text-center py-1 w-[47%] rounded-md bg-anotherPrimary text-white flex items-center justify-center gap-2
+    ${loading ? 'opacity-70 cursor-not-allowed' : 'hover:bg-blue-500'}`}
+                                onClick={isGrpDetailForm ? handleSubmitBtnClick : () => setIsGrpDetailForm(true)}
+                                disabled={loading}
+                            >
+                                {loading ? (
+                                    <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
+                                ) : (
+                                    isGrpDetailForm ? 'Create' : 'Next'
+                                )}
+                            </button>
+                            <button onClick={handleGrpMode} className='px-2 text-sm font-medium text-center rounded-md py-1 w-[47%] hover:bg-b-100 bg-white text-anotherPrimary'>
+                                Cancel
+                            </button>
                         </div>
-                    ) : (
-                        <div className='h-full overflow-y-auto flex flex-col gap-2 scrollbar-thin scrollbar-thumb-gray-400 scrollbar-track-gray-100 cursor-pointer'>
-                            {newChats.map((newChat) => (
-                                <div className={`flex justify-start gap-3 ${!members.includes(newChat._id) && 'hover:bg-gray-300'} p-2 py-1 ${members.includes(newChat._id) && 'bg-blue-300'} rounded-md`} key={newChat._id} onClick={newGrpMode ? () => handleSelMemClick(newChat) : () => handleChatClick(newChat)}>
-                                    <img className='rounded-full w-[15%]' src={newChat?.profile?.profilePic || profilePic} alt="profile picture" />
-                                    <div className='flex flex-col w-5/6 justify-center'>
-                                        <div className='flex justify-between w-full mb-0'>
-                                            <p className='text-anotherPrimary font-semibold text-sm'>{newChat.userName}</p>
+                    )}
+                </div>
+
+                {/* Results section - Takes remaining space */}
+                <div className='flex-1 min-h-0 overflow-hidden'>
+                    {!isGrpDetailForm && (
+                        newChats.length === 0 ? (
+                            <div className='h-full flex flex-col gap-2 justify-center items-center'>
+                                <div>
+                                    <FontAwesomeIcon icon={newGrpMode ? faUserFriends : faSearch} className='text-7xl text-font' />
+                                </div>
+                                <p className='text-gray-600 font-semibold text-sm text-center px-4'>
+                                    {message || (newGrpMode ? 'Search for group members using Email or Username...' : 'Search for new chats using Email or Username...')}
+                                </p>
+                            </div>
+                        ) : (
+                            <div className='h-full overflow-y-auto flex flex-col gap-2 scrollbar-thin scrollbar-thumb-gray-400 scrollbar-track-gray-100 cursor-pointer'>
+                                {newChats.map((newChat) => (
+                                    <div className={`flex justify-start gap-3 ${!members.includes(newChat._id) && 'hover:bg-gray-300'} p-2 py-1 ${members.includes(newChat._id) && 'bg-blue-300'} rounded-md`} key={newChat._id} onClick={newGrpMode ? () => handleSelMemClick(newChat) : () => handleChatClick(newChat)}>
+                                        <div className="w-10 h-10 flex-shrink-0 rounded-full overflow-hidden">
+                                            <img
+                                                src={newChat?.profile?.profilePic || profilePic}
+                                                alt="profile picture"
+                                                className="w-full h-full object-cover"
+                                            />
                                         </div>
-                                        <div className='flex justify-between w-full mt-0'>
-                                            <p className='text-xs text-font truncate'>{newChat.profile.bio}</p>
+                                        <div className='flex flex-col w-5/6 justify-center'>
+                                            <div className='flex justify-between w-full mb-0'>
+                                                <p className='text-anotherPrimary font-semibold text-sm'>{newChat.userName}</p>
+                                            </div>
+                                            <div className='flex justify-between w-full mt-0'>
+                                                <p className='text-xs text-font truncate'>{newChat.profile.bio}</p>
+                                            </div>
                                         </div>
                                     </div>
-                                </div>
-                            ))}
-                        </div>
-                    )
-                )}
+                                ))}
+                            </div>
+                        )
+                    )}
+                </div>
             </div>
         </div>
-    </div>
-)
+    )
 }
 
 export default NewChatSearch 

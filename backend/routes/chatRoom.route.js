@@ -1,6 +1,6 @@
 import express from "express";
 import { upload } from "../middlewares/fileUpload.middleware.js";
-import {createOrGetChatRoom,getAllChatRooms,dltChatRoom,searchActiveChatRoom,createGroupChat, addMember,editGroupInfo,removeMember, exitGrp,deleteGrp} from '../controllers/chatRoom.controller.js';
+import {createOrGetChatRoom,getAllChatRooms,dltChatRoom,searchActiveChatRoom,createGroupChat, addMember,editGroupInfo,removeMember, exitGrp,deleteGrp, setGroupModeration} from '../controllers/chatRoom.controller.js';
 
 const router = express.Router();
 
@@ -23,5 +23,7 @@ router.post('/removeMember',removeMember);
 router.post('/exitGrp',exitGrp);
 
 router.post('/deleteGrp',deleteGrp);
+
+router.post('/moderation', setGroupModeration);
 
 export default router;

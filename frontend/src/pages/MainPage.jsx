@@ -58,6 +58,19 @@ function MainPage() {
     const [mobileActiveTab, setMobileActiveTab] = useState('chats');
 
     const fetchChatRoomsRef = useRef(null);
+    const callHandlersRef = useRef(null);
+
+    const registerCallHandlers = (handlers) => {
+        callHandlersRef.current = handlers;
+    };
+
+    const handleStartAudioCall = () => {
+        callHandlersRef.current?.startCall?.("audio");
+    };
+
+    const handleStartVideoCall = () => {
+        callHandlersRef.current?.startCall?.("video");
+    };
 
     const userId = getUserId();
 
@@ -74,7 +87,7 @@ function MainPage() {
         setGroupDescription(currentChatRoom?.description || "");
     }, [currentChatRoom]);
 
-    const { socketRef, emitTyping, emitStopTyping, joinChatRoom,
+    const { socketRef, socket, emitTyping, emitStopTyping, joinChatRoom,
         leavePersonalRoom } = useChatSocket({
             userId,
         });
@@ -718,196 +731,178 @@ function MainPage() {
 
 
     return (
-    <>
-        <div className="h-screen flex overflow-hidden bg-gray-50">
+        <>
+            <div className="h-screen flex overflow-hidden bg-gray-50">
 
-            {/* ==================== LEFT SIDEBAR ==================== */}
-            <div className={`flex flex-col w-full md:w-1/3 lg:w-1/4 ${isMobileChatOpen ? 'hidden md:flex' : 'flex'} relative overflow-hidden`}>
+                {/* ==================== LEFT SIDEBAR ==================== */}
+                <div className={`flex flex-col w-full md:w-1/3 lg:w-1/4 ${isMobileChatOpen ? 'hidden md:flex' : 'flex'} relative overflow-hidden`}>
 
-                {/* DESKTOP PROFILE SECTION - Hidden on Mobile */}
-                <div className="hidden md:block m-2 relative">
-                    <div className={`transition-opacity duration-300 ${isProChatListLoading ? "opacity-0" : "opacity-100"} p-5 bg-gradient-to-br from-blue-50 to-gray-100 border border-gray-200 flex flex-col gap-5 rounded-tl-2xl shadow-sm`}>
-                        <div className="flex items-center justify-center gap-2">
-                            <img
-                                src="/logo.png"
-                                alt="VoxVista"
-                                className="w-7 h-7 object-contain"
-                            />
-                            <p className="font-bold text-blue-700 text-2xl tracking-tight" style={{ fontFamily: "'Poppins', sans-serif" }}>
-                                VoxVista
-                            </p>
-                        </div>
+                    {/* DESKTOP PROFILE SECTION - Hidden on Mobile */}
+                    <div className="hidden md:block m-2 relative">
+                        <div className={`transition-opacity duration-300 ${isProChatListLoading ? "opacity-0" : "opacity-100"} p-5 bg-gradient-to-br from-blue-50 to-gray-100 border border-gray-200 flex flex-col gap-5 rounded-tl-2xl shadow-sm`}>
+                            <div className="flex items-center justify-center gap-2">
+                                <img
+                                    src="/logo.png"
+                                    alt="VoxVista"
+                                    className="w-7 h-7 object-contain"
+                                />
+                                <p className="font-bold text-blue-700 text-2xl tracking-tight" style={{ fontFamily: "'Poppins', sans-serif" }}>
+                                    VoxVista
+                                </p>
+                            </div>
 
-                        <div className="flex justify-between items-start">
-                            <div className="flex gap-4 justify-start items-center">
-                                <div className="w-[72px] h-[72px] rounded-full overflow-hidden border-2 border-blue-200 shadow-md flex-shrink-0 bg-gray-100">
-                                    {profileData?.profile?.profilePic ? (
-                                        <img
-                                            src={profileData.profile.profilePic}
-                                            alt="Profile"
-                                            className="w-full h-full object-cover rounded-full"
-                                        />
-                                    ) : (
-                                        <div className="w-full h-full flex items-center justify-center">
-                                            <svg className="w-10 h-10 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
-                                                <path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd" />
-                                            </svg>
-                                        </div>
-                                    )}
+                            <div className="flex justify-between items-start">
+                                <div className="flex gap-4 justify-start items-center">
+                                    <div className="w-[72px] h-[72px] rounded-full overflow-hidden border-2 border-blue-200 shadow-md flex-shrink-0 bg-gray-100">
+                                        {profileData?.profile?.profilePic ? (
+                                            <img
+                                                src={profileData.profile.profilePic}
+                                                alt="Profile"
+                                                className="w-full h-full object-cover rounded-full"
+                                            />
+                                        ) : (
+                                            <div className="w-full h-full flex items-center justify-center">
+                                                <svg className="w-10 h-10 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
+                                                    <path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd" />
+                                                </svg>
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    <div className="flex-1 min-w-0">
+                                        <p className="text-blue-700 font-bold text-base truncate">
+                                            {profileData?.userName || "\u00A0"}
+                                        </p>
+                                        <p className="text-gray-600 text-sm truncate">
+                                            {profileData?.email || "\u00A0"}
+                                        </p>
+                                    </div>
                                 </div>
 
-                                <div className="flex-1 min-w-0">
-                                    <p className="text-blue-700 font-bold text-base truncate">
-                                        {profileData?.userName || "\u00A0"}
-                                    </p>
-                                    <p className="text-gray-600 text-sm truncate">
-                                        {profileData?.email || "\u00A0"}
-                                    </p>
+                                <div onClick={profileCardToggle} className="cursor-pointer hover:bg-gray-200 p-2 rounded-lg transition-colors">
+                                    <svg className="w-5 text-blue-600 hover:text-blue-700" fill="currentColor" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+                                        <path d="M441 58.9L453.1 71c9.4 9.4 9.4 24.6 0 33.9L424 134.1 377.9 88 407 58.9c9.4-9.4 24.6-9.4 33.9 0zM209.8 256.2L344 121.9 390.1 168 255.8 302.2c-2.9 2.9-6.5 5-10.4 6.1l-58.5 16.7 16.7-58.5c1.1-3.9 3.2-7.5 6.1-10.4zM373.1 25L175.8 222.2c-8.7 8.7-15 19.4-18.3 31.1l-28.6 100c-2.4 8.4-.1 17.4 6.1 23.6s15.2 8.5 23.6 6.1l100-28.6c11.8-3.4 22.5-9.7 31.1-18.3L487 138.9c28.1-28.1 28.1-73.7 0-101.8L474.9 25C446.8-3.1 401.2-3.1 373.1 25zM88 64C39.4 64 0 103.4 0 152L0 424c0 48.6 39.4 88 88 88l272 0c48.6 0 88-39.4 88-88l0-112c0-13.3-10.7-24-24-24s-24 10.7-24 24l0 112c0 22.1-17.9 40-40 40L88 464c-22.1 0-40-17.9-40-40l0-272c0-22.1 17.9-40 40-40l112 0c13.3 0 24-10.7 24-24s-10.7-24-24-24L88 64z" />
+                                    </svg>
                                 </div>
                             </div>
 
-                            <div onClick={profileCardToggle} className="cursor-pointer hover:bg-gray-200 p-2 rounded-lg transition-colors">
-                                <svg className="w-5 text-blue-600 hover:text-blue-700" fill="currentColor" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
-                                    <path d="M441 58.9L453.1 71c9.4 9.4 9.4 24.6 0 33.9L424 134.1 377.9 88 407 58.9c9.4-9.4 24.6-9.4 33.9 0zM209.8 256.2L344 121.9 390.1 168 255.8 302.2c-2.9 2.9-6.5 5-10.4 6.1l-58.5 16.7 16.7-58.5c1.1-3.9 3.2-7.5 6.1-10.4zM373.1 25L175.8 222.2c-8.7 8.7-15 19.4-18.3 31.1l-28.6 100c-2.4 8.4-.1 17.4 6.1 23.6s15.2 8.5 23.6 6.1l100-28.6c11.8-3.4 22.5-9.7 31.1-18.3L487 138.9c28.1-28.1 28.1-73.7 0-101.8L474.9 25C446.8-3.1 401.2-3.1 373.1 25zM88 64C39.4 64 0 103.4 0 152L0 424c0 48.6 39.4 88 88 88l272 0c48.6 0 88-39.4 88-88l0-112c0-13.3-10.7-24-24-24s-24 10.7-24 24l0 112c0 22.1-17.9 40-40 40L88 464c-22.1 0-40-17.9-40-40l0-272c0-22.1 17.9-40 40-40l112 0c13.3 0 24-10.7 24-24s-10.7-24-24-24L88 64z" />
-                                </svg>
+                            <div className="flex justify-evenly gap-3">
+                                <button className="bg-red-600 rounded-lg text-sm font-semibold py-2 text-white w-2/5 hover:bg-red-700 transition-all shadow-sm hover:shadow-md active:scale-95">
+                                    Delete
+                                </button>
+                                <button onClick={userLoggedOut} className="bg-blue-600 rounded-lg text-sm font-semibold py-2 text-white w-2/5 hover:bg-blue-700 transition-all shadow-sm hover:shadow-md active:scale-95">
+                                    Logout
+                                </button>
                             </div>
                         </div>
 
-                        <div className="flex justify-evenly gap-3">
-                            <button className="bg-red-600 rounded-lg text-sm font-semibold py-2 text-white w-2/5 hover:bg-red-700 transition-all shadow-sm hover:shadow-md active:scale-95">
-                                Delete
-                            </button>
-                            <button onClick={userLoggedOut} className="bg-blue-600 rounded-lg text-sm font-semibold py-2 text-white w-2/5 hover:bg-blue-700 transition-all shadow-sm hover:shadow-md active:scale-95">
-                                Logout
-                            </button>
-                        </div>
+                        {isProChatListLoading && (
+                            <div className={`absolute inset-0 z-10 transition-opacity duration-300 ${isProChatListLoading ? "opacity-100" : "opacity-0 pointer-events-none"}`}>
+                                <ProfileSkeleton />
+                            </div>
+                        )}
                     </div>
 
-                    {isProChatListLoading && (
-                        <div className={`absolute inset-0 z-10 transition-opacity duration-300 ${isProChatListLoading ? "opacity-100" : "opacity-0 pointer-events-none"}`}>
-                            <ProfileSkeleton />
-                        </div>
-                    )}
-                </div>
+                    {/* MOBILE: SLIDING SECTIONS */}
+                    <div className="md:hidden flex-1 flex relative">
 
-                {/* MOBILE: SLIDING SECTIONS */}
-                <div className="md:hidden flex-1 flex relative">
-
-                    {/* Chat Listing Section */}
-                    <div className={`absolute inset-0 transition-transform duration-300 ease-in-out ${mobileActiveTab === 'chats'
+                        {/* Chat Listing Section */}
+                        <div className={`absolute inset-0 transition-transform duration-300 ease-in-out ${mobileActiveTab === 'chats'
                             ? 'translate-x-0'
                             : '-translate-x-full'
-                        }`}>
-                        <div className='h-full overflow-auto bg-gradient-to-b from-blue-50 to-gray-50 m-2 rounded-2xl pb-20 border border-gray-200'>
-                            <ChatListing
-                                setIsMobileChatOpen={setIsMobileChatOpen}
-                                registerFetch={fetchChatRoomsRef}
-                                isProChatListLoading={isProChatListLoading}
-                                setIsProChatListLoading={setIsProChatListLoading}
-                                newChatCard={newChatCard}
-                                setActiveChatRooms={setActiveChatRooms}
-                                activeChatRooms={activeChatRooms}
-                            />
+                            }`}>
+                            <div className='h-full overflow-auto bg-gradient-to-b from-blue-50 to-gray-50 m-2 rounded-2xl pb-20 border border-gray-200'>
+                                <ChatListing
+                                    setIsMobileChatOpen={setIsMobileChatOpen}
+                                    registerFetch={fetchChatRoomsRef}
+                                    isProChatListLoading={isProChatListLoading}
+                                    setIsProChatListLoading={setIsProChatListLoading}
+                                    newChatCard={newChatCard}
+                                    setActiveChatRooms={setActiveChatRooms}
+                                    activeChatRooms={activeChatRooms}
+                                />
+                            </div>
                         </div>
-                    </div>
 
-                    {/* Profile Details Section */}
-                    <div className={`absolute inset-0 transition-transform duration-300 ease-in-out ${mobileActiveTab === 'profile'
+                        {/* Profile Details Section */}
+                        <div className={`absolute inset-0 transition-transform duration-300 ease-in-out ${mobileActiveTab === 'profile'
                             ? 'translate-x-0'
                             : mobileActiveTab === 'chats'
                                 ? 'translate-x-full'
                                 : '-translate-x-full'
-                        }`}>
-                        <div className='h-full m-2 rounded-2xl overflow-hidden pb-20'>
-                            <ProfileDetailsSection
-                                profileData={profileData}
-                                userLoggedOut={userLoggedOut}
-                                setMobileActiveTab={setMobileActiveTab}
-                                profileCardToggle={profileCardToggle}
-                            />
+                            }`}>
+                            <div className='h-full m-2 rounded-2xl overflow-hidden pb-20'>
+                                <ProfileDetailsSection
+                                    profileData={profileData}
+                                    userLoggedOut={userLoggedOut}
+                                    setMobileActiveTab={setMobileActiveTab}
+                                    profileCardToggle={profileCardToggle}
+                                />
+                            </div>
                         </div>
-                    </div>
 
-                    {/* Settings Section */}
-                    <div className={`absolute inset-0 transition-transform duration-300 ease-in-out ${mobileActiveTab === 'settings'
+                        {/* Settings Section */}
+                        <div className={`absolute inset-0 transition-transform duration-300 ease-in-out ${mobileActiveTab === 'settings'
                             ? 'translate-x-0'
                             : 'translate-x-full'
-                        }`}>
-                        <div className='h-full m-2 rounded-2xl overflow-hidden pb-20 bg-gradient-to-b from-blue-50 to-gray-50 border border-gray-200'>
-                            <div className='flex flex-col h-full'>
-                                <div className='flex items-center gap-4 p-4 bg-gradient-to-r from-blue-600 to-blue-700 rounded-t-2xl shadow-sm'>
-                                    <button onClick={() => setMobileActiveTab('chats')} className="hover:bg-white/10 p-2 rounded-lg transition-colors">
-                                        <FontAwesomeIcon icon={faArrowLeft} className='text-white text-xl' />
-                                    </button>
-                                    <h2 className='text-white font-bold text-lg'>Settings</h2>
-                                </div>
-                                <div className='flex-1 overflow-y-auto p-4'>
-                                    <p className='text-gray-600 text-center mt-20 text-sm'>Settings coming soon...</p>
+                            }`}>
+                            <div className='h-full m-2 rounded-2xl overflow-hidden pb-20 bg-gradient-to-b from-blue-50 to-gray-50 border border-gray-200'>
+                                <div className='flex flex-col h-full'>
+                                    <div className='flex items-center gap-4 p-4 bg-gradient-to-r from-blue-600 to-blue-700 rounded-t-2xl shadow-sm'>
+                                        <button onClick={() => setMobileActiveTab('chats')} className="hover:bg-white/10 p-2 rounded-lg transition-colors">
+                                            <FontAwesomeIcon icon={faArrowLeft} className='text-white text-xl' />
+                                        </button>
+                                        <h2 className='text-white font-bold text-lg'>Settings</h2>
+                                    </div>
+                                    <div className='flex-1 overflow-y-auto p-4'>
+                                        <p className='text-gray-600 text-center mt-20 text-sm'>Settings coming soon...</p>
+                                    </div>
                                 </div>
                             </div>
                         </div>
                     </div>
-                </div>
 
-                {/* DESKTOP CHAT LISTING */}
-                <div className='hidden md:block flex-1 overflow-auto bg-gradient-to-b from-blue-50 to-gray-50 m-2 rounded-bl-2xl mt-0 border-l border-b border-r border-gray-200'>
-                    <ChatListing
-                        setIsMobileChatOpen={setIsMobileChatOpen}
-                        registerFetch={fetchChatRoomsRef}
-                        isProChatListLoading={isProChatListLoading}
-                        setIsProChatListLoading={setIsProChatListLoading}
-                        newChatCard={newChatCard}
-                        setActiveChatRooms={setActiveChatRooms}
-                        activeChatRooms={activeChatRooms}
-                    />
-                </div>
-            </div>
-
-            {/* ==================== CHAT SECTION ==================== */}
-            <div className={`flex flex-col w-full md:flex-1 min-h-0 h-full ${isMobileChatOpen ? 'flex' : 'hidden md:flex'} ${isSideProfileCard ? 'lg:w-1/2' : 'lg:w-3/4'}`}>
-                <ChatSection
-                    isMobileChatOpen={isMobileChatOpen}
-                    setIsMobileChatOpen={setIsMobileChatOpen}
-                    accessMessage={accessMessage}
-                    setActiveChatRooms={setActiveChatRooms}
-                    socketRef={socketRef}
-                    emitTyping={emitTyping}
-                    emitStopTyping={emitStopTyping}
-                    joinChatRoom={joinChatRoom}
-                    leavePersonalRoom={leavePersonalRoom}
-                    sideProfileCard={sideProfileCard}
-                    isSideProfileCard={isSideProfileCard}
-                    delOptCardToggle={delOptCardToggle}
-                    messages={messages}
-                    setMessages={setMessages}
-                />
-            </div>
-
-            {/* ==================== SIDE PROFILE SECTION ==================== */}
-            {isSideProfileCard && (
-                <>
-                    {/* Desktop: right column */}
-                    <div className="hidden lg:block w-1/4 border-l border-gray-200 bg-white">
-                        <SideProfileSection
-                            setIsSearchNewMember={setIsSearchNewMember}
-                            setIsGroupInfoCardVisible={setIsGroupInfoCardVisible}
-                            setSelectedMember={setSelectedMember}
-                            setIsConfirmMemRemoval={setIsConfirmMemRemoval}
-                            setIsConfirmExitGrp={setIsConfirmExitGrp}
-                            setIsConfirmDltGrp={setIsConfirmDltGrp}
-                            setIsSideProfileCard={setIsSideProfileCard}
+                    {/* DESKTOP CHAT LISTING */}
+                    <div className='hidden md:block flex-1 overflow-auto bg-gradient-to-b from-blue-50 to-gray-50 m-2 rounded-bl-2xl mt-0 border-l border-b border-r border-gray-200'>
+                        <ChatListing
+                            setIsMobileChatOpen={setIsMobileChatOpen}
+                            registerFetch={fetchChatRoomsRef}
+                            isProChatListLoading={isProChatListLoading}
+                            setIsProChatListLoading={setIsProChatListLoading}
+                            newChatCard={newChatCard}
+                            setActiveChatRooms={setActiveChatRooms}
+                            activeChatRooms={activeChatRooms}
                         />
                     </div>
+                </div>
 
-                    {/* Mobile/Tablet: slide-over */}
-                    <div
-                        className="lg:hidden fixed inset-0 z-40 bg-black/40 backdrop-blur-sm"
-                        onClick={() => setIsSideProfileCard(false)}
-                    >
-                        <div
-                            className="absolute right-0 top-0 h-full w-[92vw] max-w-md bg-white shadow-2xl transform transition-transform duration-300 ease-out"
-                            onClick={(e) => e.stopPropagation()}
-                        >
+                {/* ==================== CHAT SECTION ==================== */}
+                <div className={`flex flex-col w-full md:flex-1 min-h-0 h-full ${isMobileChatOpen ? 'flex' : 'hidden md:flex'} ${isSideProfileCard ? 'lg:w-1/2' : 'lg:w-3/4'}`}>
+                    <ChatSection
+                        isMobileChatOpen={isMobileChatOpen}
+                        setIsMobileChatOpen={setIsMobileChatOpen}
+                        accessMessage={accessMessage}
+                        setActiveChatRooms={setActiveChatRooms}
+                        socketRef={socketRef}
+                        emitTyping={emitTyping}
+                        emitStopTyping={emitStopTyping}
+                        joinChatRoom={joinChatRoom}
+                        leavePersonalRoom={leavePersonalRoom}
+                        sideProfileCard={sideProfileCard}
+                        isSideProfileCard={isSideProfileCard}
+                        delOptCardToggle={delOptCardToggle}
+                        messages={messages}
+                        setMessages={setMessages}
+                        socket={socket}
+                        registerCallHandlers={registerCallHandlers}
+                    />
+                </div>
+
+                {/* ==================== SIDE PROFILE SECTION ==================== */}
+                {isSideProfileCard && (
+                    <>
+                        {/* Desktop: right column */}
+                        <div className="hidden lg:block w-1/4 border-l border-gray-200 bg-white">
                             <SideProfileSection
                                 setIsSearchNewMember={setIsSearchNewMember}
                                 setIsGroupInfoCardVisible={setIsGroupInfoCardVisible}
@@ -916,299 +911,357 @@ function MainPage() {
                                 setIsConfirmExitGrp={setIsConfirmExitGrp}
                                 setIsConfirmDltGrp={setIsConfirmDltGrp}
                                 setIsSideProfileCard={setIsSideProfileCard}
+                                onStartAudioCall={handleStartAudioCall}
+                                onStartVideoCall={handleStartVideoCall}
                             />
                         </div>
-                    </div>
-                </>
-            )}
 
-            {/* ==================== MODALS ==================== */}
-
-            {/* Profile Update Card */}
-            {isProfileCardVisible && (
-                <ProfileCard
-                    profileCardToggle={profileCardToggle}
-                    profileData={profileData}
-                    setMobileActiveTab={setMobileActiveTab}
-                />
-            )}
-
-            {/* New Chat Search */}
-            {isNewChatCardVisible && (
-                <NewChatSearch newChatCard={newChatCard} />
-            )}
-
-            {/* Delete Message Options */}
-            {isDelOptCardVisible && (
-                <div className='h-screen w-full z-10 absolute bg-black/40 backdrop-blur-sm flex justify-center items-center' onClick={() => setIsDelOptCardVisible(false)}>
-                    <div className='w-[92vw] max-w-sm py-6 px-6 bg-white shadow-xl flex flex-col rounded-xl border border-gray-200' onClick={(e) => e.stopPropagation()}>
-                        <div className='flex justify-end'>
-                            <button className="hover:bg-gray-100 p-2 rounded-lg transition-colors">
-                                <FontAwesomeIcon icon={faTimes} className='text-lg text-gray-600 cursor-pointer' onClick={() => setIsDelOptCardVisible(false)} />
-                            </button>
+                        {/* Mobile/Tablet: slide-over */}
+                        <div
+                            className="lg:hidden fixed inset-0 z-40 bg-black/40 backdrop-blur-sm"
+                            onClick={() => setIsSideProfileCard(false)}
+                        >
+                            <div
+                                className="absolute right-0 top-0 h-full w-[92vw] max-w-md bg-white shadow-2xl transform transition-transform duration-300 ease-out"
+                                onClick={(e) => e.stopPropagation()}
+                            >
+                                <SideProfileSection
+                                    setIsSearchNewMember={setIsSearchNewMember}
+                                    setIsGroupInfoCardVisible={setIsGroupInfoCardVisible}
+                                    setSelectedMember={setSelectedMember}
+                                    setIsConfirmMemRemoval={setIsConfirmMemRemoval}
+                                    setIsConfirmExitGrp={setIsConfirmExitGrp}
+                                    setIsConfirmDltGrp={setIsConfirmDltGrp}
+                                    setIsSideProfileCard={setIsSideProfileCard}
+                                    onStartAudioCall={handleStartAudioCall}
+                                    onStartVideoCall={handleStartVideoCall}
+                                />
+                            </div>
                         </div>
-                        <div className='flex flex-col gap-4'>
-                            <p className='text-2xl font-bold text-center text-gray-800'>
-                                Delete Message?
-                            </p>
-                            <div className='flex flex-col gap-3 justify-evenly items-center'>
-                                <button className='w-3/4 p-2 py-2.5 font-semibold hover:bg-blue-700 bg-blue-600 text-white text-sm rounded-lg shadow-sm hover:shadow-md transition-all active:scale-95' onClick={deleteSelectedMsg}>
-                                    Delete for me
+                    </>
+                )}
+
+                {/* ==================== MODALS ==================== */}
+
+                {/* Profile Update Card */}
+                {isProfileCardVisible && (
+                    <ProfileCard
+                        profileCardToggle={profileCardToggle}
+                        profileData={profileData}
+                        setMobileActiveTab={setMobileActiveTab}
+                    />
+                )}
+
+                {/* New Chat Search */}
+                {isNewChatCardVisible && (
+                    <NewChatSearch newChatCard={newChatCard} />
+                )}
+
+                {/* Delete Message Options */}
+                {isDelOptCardVisible && (
+                    <div className='h-screen w-full z-10 absolute bg-black/40 backdrop-blur-sm flex justify-center items-center' onClick={() => setIsDelOptCardVisible(false)}>
+                        <div className='w-[92vw] max-w-sm py-6 px-6 bg-white shadow-xl flex flex-col rounded-xl border border-gray-200' onClick={(e) => e.stopPropagation()}>
+                            <div className='flex justify-end'>
+                                <button className="hover:bg-gray-100 p-2 rounded-lg transition-colors">
+                                    <FontAwesomeIcon icon={faTimes} className='text-lg text-gray-600 cursor-pointer' onClick={() => setIsDelOptCardVisible(false)} />
                                 </button>
-                                <button className='w-3/4 p-2 py-2.5 font-semibold hover:bg-red-700 text-white bg-red-600 text-sm rounded-lg shadow-sm hover:shadow-md transition-all active:scale-95' onClick={deleteMsgForEveryone}>
-                                    Delete for everyone
-                                </button>
+                            </div>
+                            <div className='flex flex-col gap-4'>
+                                <p className='text-2xl font-bold text-center text-gray-800'>
+                                    Delete Message?
+                                </p>
+                                <div className='flex flex-col gap-3 justify-evenly items-center'>
+                                    <button className='w-3/4 p-2 py-2.5 font-semibold hover:bg-blue-700 bg-blue-600 text-white text-sm rounded-lg shadow-sm hover:shadow-md transition-all active:scale-95' onClick={deleteSelectedMsg}>
+                                        Delete for me
+                                    </button>
+                                    <button className='w-3/4 p-2 py-2.5 font-semibold hover:bg-red-700 text-white bg-red-600 text-sm rounded-lg shadow-sm hover:shadow-md transition-all active:scale-95' onClick={deleteMsgForEveryone}>
+                                        Delete for everyone
+                                    </button>
+                                </div>
                             </div>
                         </div>
                     </div>
-                </div>
-            )}
+                )}
 
-            {/* Add New Members */}
-            {isSearchNewMember && (
-                <div
-                    className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center"
-                    onClick={() => {
-                        setIsSearchNewMember(false);
-                        setPotentialMembers([]);
-                        setNewMembers([]);
-                    }}
-                >
+                {/* Add New Members */}
+                {isSearchNewMember && (
                     <div
-                        className="w-[92vw] max-w-md py-6 px-5 bg-white rounded-xl shadow-2xl flex flex-col gap-4 border border-gray-200"
-                        onClick={(e) => e.stopPropagation()}
+                        className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center"
+                        onClick={() => {
+                            setIsSearchNewMember(false);
+                            setPotentialMembers([]);
+                            setNewMembers([]);
+                        }}
                     >
-                        <h3 className="text-lg font-bold text-center text-blue-700">
-                            Add Members
-                        </h3>
-                        <input
-                            className="rounded-lg py-2.5 px-4 text-sm w-full focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-700 border border-gray-300"
-                            type="text"
-                            placeholder="Search email or username"
-                            onChange={(e) => setSearchInput(e.target.value)}
-                        />
+                        <div
+                            className="w-[92vw] max-w-md py-6 px-5 bg-white rounded-xl shadow-2xl flex flex-col gap-4 border border-gray-200"
+                            onClick={(e) => e.stopPropagation()}
+                        >
+                            <h3 className="text-lg font-bold text-center text-blue-700">
+                                Add Members
+                            </h3>
+                            <input
+                                className="rounded-lg py-2.5 px-4 text-sm w-full focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-700 border border-gray-300"
+                                type="text"
+                                placeholder="Search email or username"
+                                onChange={(e) => setSearchInput(e.target.value)}
+                            />
 
-                        {newMembers.length > 0 && (
-                            <div className="flex flex-wrap gap-2">
-                                {newMembers.map(mem => (
-                                    <span
-                                        key={mem._id}
-                                        className="px-3 py-1.5 bg-blue-600 text-white text-xs rounded-full font-medium shadow-sm"
-                                    >
-                                        {mem.userName}
-                                    </span>
-                                ))}
-                            </div>
-                        )}
+                            {newMembers.length > 0 && (
+                                <div className="flex flex-wrap gap-2">
+                                    {newMembers.map(mem => (
+                                        <span
+                                            key={mem._id}
+                                            className="px-3 py-1.5 bg-blue-600 text-white text-xs rounded-full font-medium shadow-sm"
+                                        >
+                                            {mem.userName}
+                                        </span>
+                                    ))}
+                                </div>
+                            )}
 
-                        <div className="max-h-56 overflow-y-auto flex flex-col gap-2">
-                            {filteredPotentialMembers.map((potMem) => {
-                                const isSelected = newMembers.some(m => m._id === potMem._id);
+                            <div className="max-h-56 overflow-y-auto flex flex-col gap-2">
+                                {filteredPotentialMembers.map((potMem) => {
+                                    const isSelected = newMembers.some(m => m._id === potMem._id);
 
-                                return (
-                                    <div
-                                        key={potMem._id}
-                                        onClick={() => toggleMember(potMem)}
-                                        className={`flex items-center gap-3 p-3 rounded-lg cursor-pointer transition-all ${isSelected ? "bg-blue-600 text-white shadow-md" : "bg-gray-50 hover:bg-gray-100"}`}
-                                    >
-                                        <img
-                                            src={potMem.profile?.profilePic}
-                                            className="w-10 h-10 rounded-full object-cover border-2 border-white shadow-sm"
-                                        />
-                                        <div className="flex flex-col flex-1 min-w-0">
-                                            <span className={`text-sm font-medium truncate ${isSelected ? "text-white" : "text-gray-800"}`}>
-                                                {potMem.userName}
-                                            </span>
-                                            <span className={`text-xs truncate ${isSelected ? "text-blue-100" : "text-gray-500"}`}>
-                                                {potMem.email}
-                                            </span>
+                                    return (
+                                        <div
+                                            key={potMem._id}
+                                            onClick={() => toggleMember(potMem)}
+                                            className={`flex items-center gap-3 p-3 rounded-lg cursor-pointer transition-all ${isSelected ? "bg-blue-600 text-white shadow-md" : "bg-gray-50 hover:bg-gray-100"}`}
+                                        >
+                                            <img
+                                                src={potMem.profile?.profilePic}
+                                                className="w-10 h-10 rounded-full object-cover border-2 border-white shadow-sm"
+                                            />
+                                            <div className="flex flex-col flex-1 min-w-0">
+                                                <span className={`text-sm font-medium truncate ${isSelected ? "text-white" : "text-gray-800"}`}>
+                                                    {potMem.userName}
+                                                </span>
+                                                <span className={`text-xs truncate ${isSelected ? "text-blue-100" : "text-gray-500"}`}>
+                                                    {potMem.email}
+                                                </span>
+                                            </div>
                                         </div>
-                                    </div>
-                                );
-                            })}
-                        </div>
+                                    );
+                                })}
+                            </div>
 
-                        {newMembers.length > 0 && (
+                            {newMembers.length > 0 && (
+                                <div className="flex justify-end gap-3 pt-2">
+                                    <button
+                                        className="px-5 py-2 rounded-lg border border-gray-300 text-gray-700 font-medium hover:bg-gray-50 transition-colors"
+                                        onClick={() => {
+                                            setIsSearchNewMember(false);
+                                            setPotentialMembers([]);
+                                            setNewMembers([]);
+                                        }}
+                                    >
+                                        Cancel
+                                    </button>
+
+                                    <button
+                                        disabled={newMembers.length === 0 || loadingAction === 'addMem'}
+                                        className={`px-5 py-2 rounded-lg text-white font-medium shadow-sm hover:shadow-md transition-all active:scale-95 flex items-center justify-center gap-2 
+    ${newMembers.length === 0 || loadingAction === 'addMem' ? "bg-gray-400 cursor-not-allowed" : "bg-blue-600 hover:bg-blue-700"}`}
+                                        onClick={handleMemberSelection}
+                                    >
+                                        {loadingAction === 'addMem' ? (
+                                            <>
+                                                <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
+                                                Adding
+                                            </>
+                                        ) : 'Add'}
+                                    </button>
+
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                )}
+
+                {/* Edit Group Info */}
+                {isGroupInfoCardVisible && (
+                    <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center">
+                        <div className="w-[92vw] max-w-lg bg-white rounded-xl shadow-2xl p-6 flex flex-col gap-5 border border-gray-200">
+                            <div className="flex justify-between items-center">
+                                <h3 className="text-lg font-bold text-blue-700">
+                                    Edit Group Info
+                                </h3>
+                                <button
+                                    onClick={() => { setIsGroupInfoCardVisible(false); handleGroupInfoCleaner(); }}
+                                    className="text-gray-600 hover:text-gray-800 hover:bg-gray-100 p-2 rounded-lg transition-colors text-xl"
+                                >
+                                    ✕
+                                </button>
+                            </div>
+
+                            <div className="flex flex-col items-center gap-3">
+                                <div className="w-24 h-24 rounded-full overflow-hidden border-3 border-blue-600 shadow-lg">
+                                    <img
+                                        src={groupPreviewIcon || currentChatRoom?.groupIcon}
+                                        className="w-full h-full object-cover"
+                                    />
+                                </div>
+                                <label className="text-sm text-blue-600 cursor-pointer font-semibold hover:text-blue-700 transition-colors">
+                                    Change Icon
+                                    <input
+                                        type="file"
+                                        accept="image/*"
+                                        className="hidden"
+                                        onChange={handleGroupIconChange}
+                                    />
+                                </label>
+                            </div>
+
+                            <div className="flex flex-col gap-2">
+                                <label className="text-sm font-semibold text-gray-700">
+                                    Group Name
+                                </label>
+                                <input
+                                    type="text"
+                                    value={groupName}
+                                    onChange={(e) => setGroupName(e.target.value)}
+                                    className="rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 border border-gray-300"
+                                    placeholder="Enter group name"
+                                />
+                            </div>
+
+                            <div className="flex flex-col gap-2">
+                                <label className="text-sm font-semibold text-gray-700">
+                                    Description
+                                </label>
+                                <textarea
+                                    value={groupDescription}
+                                    onChange={(e) => setGroupDescription(e.target.value)}
+                                    rows={3}
+                                    className="rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none border border-gray-300"
+                                    placeholder="Write something about the group..."
+                                />
+                            </div>
+
                             <div className="flex justify-end gap-3 pt-2">
                                 <button
+                                    onClick={() => { setIsGroupInfoCardVisible(false); handleGroupInfoCleaner() }}
                                     className="px-5 py-2 rounded-lg border border-gray-300 text-gray-700 font-medium hover:bg-gray-50 transition-colors"
-                                    onClick={() => {
-                                        setIsSearchNewMember(false);
-                                        setPotentialMembers([]);
-                                        setNewMembers([]);
-                                    }}
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    disabled={loadingAction === 'updateGrp'}
+                                    onClick={handleUpdateGroupInfo}
+                                    className="px-5 py-2 rounded-lg bg-blue-600 text-white font-medium hover:bg-blue-700 shadow-sm hover:shadow-md transition-all active:scale-95 flex items-center justify-center gap-2"
+                                >
+                                    {loadingAction === 'updateGrp' ? (
+                                        <>
+                                            <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
+                                            Saving
+                                        </>
+                                    ) : 'Save'}
+                                </button>
+
+                            </div>
+                        </div>
+                    </div>
+                )}
+
+                {/* Remove Member / Exit Group Confirmation */}
+                {(isConfirmMemRemoval || isConfirmExitGrp) && (
+                    <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center">
+                        <div className="w-[92vw] max-w-sm bg-white rounded-xl shadow-2xl p-6 flex flex-col gap-4 border border-gray-200">
+                            <h3 className="text-lg font-bold text-center text-gray-800">
+                                {isConfirmMemRemoval ? "Remove Member" : "Exit Group"}
+                            </h3>
+
+                            <p className="text-sm text-gray-600 text-center leading-relaxed">
+                                {isConfirmMemRemoval
+                                    ? `Are you sure you want to remove "${selectedMember?.userName}" from this group?`
+                                    : "Are you sure you want to exit the group?"}
+                            </p>
+
+                            <div className="flex justify-center gap-3 pt-2">
+                                <button
+                                    className="px-5 py-2 rounded-lg border border-gray-300 text-gray-700 font-medium hover:bg-gray-50 transition-colors"
+                                    onClick={isConfirmMemRemoval ? () => setIsConfirmMemRemoval(false) : () => setIsConfirmExitGrp(false)}
                                 >
                                     Cancel
                                 </button>
 
                                 <button
-                                    disabled={newMembers.length === 0 || loadingAction === 'addMem'}
-                                    className={`px-5 py-2 rounded-lg text-white font-medium shadow-sm hover:shadow-md transition-all active:scale-95 ${newMembers.length === 0 ? "bg-gray-400 cursor-not-allowed" : "bg-blue-600 hover:bg-blue-700"}`}
-                                    onClick={handleMemberSelection}
+                                    disabled={loadingAction === 'removeMem' || loadingAction === 'exitGrp'}
+                                    className="px-5 py-2 rounded-lg bg-red-600 text-white font-medium hover:bg-red-700 shadow-sm hover:shadow-md transition-all active:scale-95 flex items-center justify-center gap-2"
+                                    onClick={isConfirmMemRemoval ? handleRemoveMember : handleExitGrp}
                                 >
-                                    {loadingAction === 'addMem' ? `Adding${dots}` : 'Add'}
+                                    {isConfirmMemRemoval ? (
+                                        loadingAction === 'removeMem' ? (
+                                            <>
+                                                <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
+                                                Removing
+                                            </>
+                                        ) : 'Remove'
+                                    ) : (
+                                        loadingAction === 'exitGrp' ? (
+                                            <>
+                                                <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
+                                                Exiting
+                                            </>
+                                        ) : 'Exit'
+                                    )}
                                 </button>
-                            </div>
-                        )}
-                    </div>
-                </div>
-            )}
 
-            {/* Edit Group Info */}
-            {isGroupInfoCardVisible && (
-                <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center">
-                    <div className="w-[92vw] max-w-lg bg-white rounded-xl shadow-2xl p-6 flex flex-col gap-5 border border-gray-200">
-                        <div className="flex justify-between items-center">
-                            <h3 className="text-lg font-bold text-blue-700">
-                                Edit Group Info
+                            </div>
+                        </div>
+                    </div>
+                )}
+
+                {/* Delete Group Confirmation */}
+                {isConfirmDltGrp && (
+                    <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center">
+                        <div className="w-[92vw] max-w-sm bg-white rounded-xl shadow-2xl p-6 flex flex-col gap-4 border border-gray-200">
+                            <h3 className="text-lg font-bold text-center text-gray-800">
+                                Delete Group
                             </h3>
-                            <button
-                                onClick={() => { setIsGroupInfoCardVisible(false); handleGroupInfoCleaner(); }}
-                                className="text-gray-600 hover:text-gray-800 hover:bg-gray-100 p-2 rounded-lg transition-colors text-xl"
-                            >
-                                ✕
-                            </button>
-                        </div>
 
-                        <div className="flex flex-col items-center gap-3">
-                            <div className="w-24 h-24 rounded-full overflow-hidden border-3 border-blue-600 shadow-lg">
-                                <img
-                                    src={groupPreviewIcon || currentChatRoom?.groupIcon}
-                                    className="w-full h-full object-cover"
-                                />
+                            <p className="text-sm text-gray-600 text-center leading-relaxed">
+                                Are you sure you want to delete this group? This action cannot be undone.
+                            </p>
+
+                            <div className="flex justify-center gap-3 pt-2">
+                                <button
+                                    className="px-5 py-2 rounded-lg border border-gray-300 text-gray-700 font-medium hover:bg-gray-50 transition-colors"
+                                    onClick={() => setIsConfirmDltGrp(false)}
+                                >
+                                    Cancel
+                                </button>
+
+                                <button
+                                    disabled={loadingAction === 'deleteGrp'}
+                                    className="px-5 py-2 rounded-lg bg-red-600 text-white font-medium hover:bg-red-700 shadow-sm hover:shadow-md transition-all active:scale-95 flex items-center justify-center gap-2"
+                                    onClick={handleDeleteGrp}
+                                >
+                                    {loadingAction === 'deleteGrp' ? (
+                                        <>
+                                            <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
+                                            Deleting
+                                        </>
+                                    ) : 'Delete'}
+                                </button>
+
                             </div>
-                            <label className="text-sm text-blue-600 cursor-pointer font-semibold hover:text-blue-700 transition-colors">
-                                Change Icon
-                                <input
-                                    type="file"
-                                    accept="image/*"
-                                    className="hidden"
-                                    onChange={handleGroupIconChange}
-                                />
-                            </label>
-                        </div>
-
-                        <div className="flex flex-col gap-2">
-                            <label className="text-sm font-semibold text-gray-700">
-                                Group Name
-                            </label>
-                            <input
-                                type="text"
-                                value={groupName}
-                                onChange={(e) => setGroupName(e.target.value)}
-                                className="rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 border border-gray-300"
-                                placeholder="Enter group name"
-                            />
-                        </div>
-
-                        <div className="flex flex-col gap-2">
-                            <label className="text-sm font-semibold text-gray-700">
-                                Description
-                            </label>
-                            <textarea
-                                value={groupDescription}
-                                onChange={(e) => setGroupDescription(e.target.value)}
-                                rows={3}
-                                className="rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none border border-gray-300"
-                                placeholder="Write something about the group..."
-                            />
-                        </div>
-
-                        <div className="flex justify-end gap-3 pt-2">
-                            <button
-                                onClick={() => { setIsGroupInfoCardVisible(false); handleGroupInfoCleaner() }}
-                                className="px-5 py-2 rounded-lg border border-gray-300 text-gray-700 font-medium hover:bg-gray-50 transition-colors"
-                            >
-                                Cancel
-                            </button>
-                            <button
-                                disabled={loadingAction === 'updateGrp'}
-                                onClick={handleUpdateGroupInfo}
-                                className="px-5 py-2 rounded-lg bg-blue-600 text-white font-medium hover:bg-blue-700 shadow-sm hover:shadow-md transition-all active:scale-95"
-                            >
-                                {loadingAction === 'updateGrp' ? `Saving${dots}` : 'Save'}
-                            </button>
                         </div>
                     </div>
-                </div>
-            )}
+                )}
 
-            {/* Remove Member / Exit Group Confirmation */}
-            {(isConfirmMemRemoval || isConfirmExitGrp) && (
-                <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center">
-                    <div className="w-[92vw] max-w-sm bg-white rounded-xl shadow-2xl p-6 flex flex-col gap-4 border border-gray-200">
-                        <h3 className="text-lg font-bold text-center text-gray-800">
-                            {isConfirmMemRemoval ? "Remove Member" : "Exit Group"}
-                        </h3>
-
-                        <p className="text-sm text-gray-600 text-center leading-relaxed">
-                            {isConfirmMemRemoval
-                                ? `Are you sure you want to remove "${selectedMember?.userName}" from this group?`
-                                : "Are you sure you want to exit the group?"}
-                        </p>
-
-                        <div className="flex justify-center gap-3 pt-2">
-                            <button
-                                className="px-5 py-2 rounded-lg border border-gray-300 text-gray-700 font-medium hover:bg-gray-50 transition-colors"
-                                onClick={isConfirmMemRemoval ? () => setIsConfirmMemRemoval(false) : () => setIsConfirmExitGrp(false)}
-                            >
-                                Cancel
-                            </button>
-
-                            <button
-                                disabled={loadingAction === 'removeMem' || loadingAction === 'exitGrp'}
-                                className="px-5 py-2 rounded-lg bg-red-600 text-white font-medium hover:bg-red-700 shadow-sm hover:shadow-md transition-all active:scale-95"
-                                onClick={isConfirmMemRemoval ? handleRemoveMember : handleExitGrp}
-                            >
-                                {isConfirmMemRemoval ? (loadingAction === 'removeMem' ? `Removing${dots}` : 'Remove') : (loadingAction === 'exitGrp' ? `Exiting${dots}` : 'Exit')}
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            )}
-
-            {/* Delete Group Confirmation */}
-            {isConfirmDltGrp && (
-                <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center">
-                    <div className="w-[92vw] max-w-sm bg-white rounded-xl shadow-2xl p-6 flex flex-col gap-4 border border-gray-200">
-                        <h3 className="text-lg font-bold text-center text-gray-800">
-                            Delete Group
-                        </h3>
-
-                        <p className="text-sm text-gray-600 text-center leading-relaxed">
-                            Are you sure you want to delete this group? This action cannot be undone.
-                        </p>
-
-                        <div className="flex justify-center gap-3 pt-2">
-                            <button
-                                className="px-5 py-2 rounded-lg border border-gray-300 text-gray-700 font-medium hover:bg-gray-50 transition-colors"
-                                onClick={() => setIsConfirmDltGrp(false)}
-                            >
-                                Cancel
-                            </button>
-
-                            <button
-                                disabled={loadingAction === 'deleteGrp'}
-                                className="px-5 py-2 rounded-lg bg-red-600 text-white font-medium hover:bg-red-700 shadow-sm hover:shadow-md transition-all active:scale-95"
-                                onClick={handleDeleteGrp}
-                            >
-                                {loadingAction === 'deleteGrp' ? `Deleting${dots}` : 'Delete'}
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            )}
-
-            {/* ==================== MOBILE BOTTOM NAV ==================== */}
-            {!isMobileChatOpen && (
-                <MobileBottomNav
-                    activeTab={mobileActiveTab}
-                    setActiveTab={setMobileActiveTab}
-                />
-            )}
-        </div>
-    </>
-)
+                {/* ==================== MOBILE BOTTOM NAV ==================== */}
+                {!isMobileChatOpen && (
+                    <MobileBottomNav
+                        activeTab={mobileActiveTab}
+                        setActiveTab={setMobileActiveTab}
+                    />
+                )}
+            </div>
+        </>
+    )
 }
 
 export default MainPage

@@ -1,6 +1,6 @@
 import React, { useState } from 'react'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faPhone, faVideo, faArrowLeft, faEllipsisV } from '@fortawesome/free-solid-svg-icons';
+import { faPhone, faVideo, faArrowLeft, faEllipsisV, faListUl } from '@fortawesome/free-solid-svg-icons';
 import Translation from './Translation';
 import { useDispatch, useSelector } from 'react-redux';
 import { setCurrentChat } from '../store/chatSlice';
@@ -18,6 +18,10 @@ function HeaderSecCS({
     isSideProfileCard,
     sideProfileCard,
     setIsMobileChatOpen, // NEW PROP for mobile navigation
+    onStartAudioCall,
+    onStartVideoCall,
+    onOpenSummarize,
+    showSummarize = false,
 }) {
 
     
@@ -130,18 +134,46 @@ function HeaderSecCS({
                     {!isSideProfileCard && (
                         <>
                             {/* DESKTOP VIEW - All icons visible */}
-                            <div className='hidden md:flex gap-4 flex-shrink-0'>
+                            <div className='hidden md:flex gap-4 flex-shrink-0 items-center'>
+                                {showSummarize && (
+                                    <button
+                                        type="button"
+                                        title="Summarize conversation"
+                                        onClick={onOpenSummarize}
+                                        className="text-gray-500 hover:text-anotherPrimary transition"
+                                    >
+                                        <FontAwesomeIcon icon={faListUl} className="text-xl" />
+                                    </button>
+                                )}
                                 <Translation />
                                 <div>
-                                    <FontAwesomeIcon icon={faPhone} className='text-gray-400 text-xl hover:text-anotherPrimary transition cursor-pointer' />
+                                    <FontAwesomeIcon
+                                        icon={faPhone}
+                                        className='text-gray-400 text-xl hover:text-anotherPrimary transition cursor-pointer'
+                                        onClick={onStartAudioCall}
+                                    />
                                 </div>
                                 <div>
-                                    <FontAwesomeIcon icon={faVideo} className='text-gray-400 text-xl hover:text-anotherPrimary transition cursor-pointer' />
+                                    <FontAwesomeIcon
+                                        icon={faVideo}
+                                        className='text-gray-400 text-xl hover:text-anotherPrimary transition cursor-pointer'
+                                        onClick={onStartVideoCall}
+                                    />
                                 </div>
                             </div>
 
                             {/* MOBILE VIEW - Translation + Three dots menu */}
                             <div className='md:hidden flex items-center gap-3 flex-shrink-0'>
+                                {showSummarize && (
+                                    <button
+                                        type="button"
+                                        title="Summarize"
+                                        onClick={onOpenSummarize}
+                                        className="text-gray-500"
+                                    >
+                                        <FontAwesomeIcon icon={faListUl} className="text-lg" />
+                                    </button>
+                                )}
                                 {/* Translation Button - Always visible on mobile */}
                                 <Translation />
 
@@ -162,7 +194,7 @@ function HeaderSecCS({
                                                 className='w-full flex items-center gap-3 px-4 py-2 hover:bg-gray-100 text-left text-sm'
                                                 onClick={() => {
                                                     setShowMobileMenu(false);
-                                                    // Handle audio call
+                                                    onStartAudioCall?.();
                                                 }}
                                             >
                                                 <FontAwesomeIcon icon={faPhone} className='text-anotherPrimary' />
@@ -173,7 +205,7 @@ function HeaderSecCS({
                                                 className='w-full flex items-center gap-3 px-4 py-2 hover:bg-gray-100 text-left text-sm'
                                                 onClick={() => {
                                                     setShowMobileMenu(false);
-                                                    // Handle video call
+                                                    onStartVideoCall?.();
                                                 }}
                                             >
                                                 <FontAwesomeIcon icon={faVideo} className='text-anotherPrimary' />

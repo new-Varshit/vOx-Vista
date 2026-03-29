@@ -2,7 +2,7 @@ import React from 'react';
 import { useRef, useState, useEffect } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faFaceSmile, faPaperPlane, } from '@fortawesome/free-regular-svg-icons';
-import { faPaperclip, } from '@fortawesome/free-solid-svg-icons';
+import { faPaperclip, faMicrophone, faStop } from '@fortawesome/free-solid-svg-icons';
 import Picker from '@emoji-mart/react';
 import GetFileIcon from '../utils/GetFileIcon';
 import { useSelector } from 'react-redux';
@@ -15,15 +15,21 @@ function InputAreaCS({
     sendMessage,
     setSendMessage,
     handleTyping,
+    disableAttachments = false,
 }) {
 
 
     const currentChatRoom = useSelector((state) => state.chatRoom.currentChatRoom);
 
     const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+    const [isRecording, setIsRecording] = useState(false);
 
     const fileInputRef = useRef(null);
     const previewRef = useRef(null);
+    const mediaRecorderRef = useRef(null);
+    const recordedChunksRef = useRef([]);
+    const speechRecognitionRef = useRef(null);
+    const transcriptRef = useRef("");
 
 
 
@@ -66,6 +72,70 @@ function InputAreaCS({
         fileInputRef.current.click();
     };
 
+    const startAudioRecording = async () => {
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            const mediaRecorder = new MediaRecorder(stream);
+            recordedChunksRef.current = [];
+            transcriptRef.current = "";
+
+            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+            if (SpeechRecognition) {
+                const recognition = new SpeechRecognition();
+                recognition.continuous = true;
+                recognition.interimResults = true;
+                recognition.lang = "en-US";
+
+                recognition.onresult = (event) => {
+                    let finalText = "";
+                    for (let i = 0; i < event.results.length; i += 1) {
+                        finalText += event.results[i][0].transcript;
+                    }
+                    transcriptRef.current = finalText.trim();
+                };
+
+                recognition.onerror = () => {};
+                recognition.onend = () => {};
+                recognition.start();
+                speechRecognitionRef.current = recognition;
+            }
+
+            mediaRecorder.ondataavailable = (event) => {
+                if (event.data.size > 0) {
+                    recordedChunksRef.current.push(event.data);
+                }
+            };
+
+            mediaRecorder.onstop = () => {
+                const blob = new Blob(recordedChunksRef.current, { type: "audio/webm" });
+                const audioFile = new File([blob], `voice-note-${Date.now()}.webm`, { type: "audio/webm" });
+                const preview = URL.createObjectURL(blob);
+                setSelectedFiles((prev) => [...prev, { file: audioFile, preview }].slice(0, 5));
+                // Use auto-captured transcript as default caption for voice notes.
+                setSendMessage((prev) => (prev?.trim() ? prev : transcriptRef.current || ""));
+                stream.getTracks().forEach((track) => track.stop());
+            };
+
+            mediaRecorderRef.current = mediaRecorder;
+            mediaRecorder.start();
+            setIsRecording(true);
+        } catch (err) {
+            console.log("audio recording permission error", err);
+            alert("Microphone permission is required to record audio.");
+        }
+    };
+
+    const stopAudioRecording = () => {
+        if (!mediaRecorderRef.current) return;
+        mediaRecorderRef.current.stop();
+        mediaRecorderRef.current = null;
+        if (speechRecognitionRef.current) {
+            speechRecognitionRef.current.stop();
+            speechRecognitionRef.current = null;
+        }
+        setIsRecording(false);
+    };
+
 
     useEffect(() => {
         const handleClickOutside = (event) => {
@@ -105,9 +175,24 @@ function InputAreaCS({
                         </div>
                     )}
 
-                    <button type="button" onClick={handleClipClick}>
-                        <FontAwesomeIcon icon={faPaperclip} className='text-white text-xl md:text-2xl' />
-                    </button>
+                    {!disableAttachments && (
+                        <button type="button" onClick={handleClipClick}>
+                            <FontAwesomeIcon icon={faPaperclip} className='text-white text-xl md:text-2xl' />
+                        </button>
+                    )}
+
+                    {!disableAttachments && (
+                        <button
+                            type="button"
+                            onClick={isRecording ? stopAudioRecording : startAudioRecording}
+                            title={isRecording ? "Stop recording" : "Record audio message"}
+                        >
+                            <FontAwesomeIcon
+                                icon={isRecording ? faStop : faMicrophone}
+                                className={`text-xl md:text-2xl ${isRecording ? 'text-red-500' : 'text-white'}`}
+                            />
+                        </button>
+                    )}
 
                     <input
                         type="file"
@@ -152,6 +237,9 @@ function InputAreaCS({
                                                 controls
                                                 className="w-full h-full object-cover rounded-md"
                                             />
+                                        )}
+                                        {fileObj.preview && fileObj.file.type.startsWith("audio/") && (
+                                            <audio src={fileObj.preview} controls className="w-full mt-2" />
                                         )}
                                         {!fileObj.preview && (
                                             <div className="w-full h-full text-center p-2 rounded-md text-gray-600 text-xs font-medium bg-gray-50 flex flex-col justify-center items-center">

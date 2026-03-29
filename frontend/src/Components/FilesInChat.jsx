@@ -9,9 +9,13 @@ function filesInChat({ attachments }) {
 
   return (
     <>
-      <div className='flex gap-2'>
+      <div className='flex gap-2 flex-wrap'>
         {attachments?.map((attachment, index) => (
-          <div key={index} className="w-24 h-24 flex flex-col items-center flex-wrap " onClick={() => setFileToShow(attachment)}>
+          <div
+            key={index}
+            className={`${attachment?.mimeType?.startsWith("audio/") ? "w-full" : "w-24 h-24"} flex flex-col items-center`}
+            onClick={() => setFileToShow(attachment)}
+          >
 
             {/* Show preview for images and videos */}
             {attachment?.mimeType?.startsWith("image/") && (
@@ -27,6 +31,15 @@ function filesInChat({ attachments }) {
                 controls
                 className="w-24 h-24 object-cover rounded-md"
               />
+            )}
+            {attachment?.mimeType?.startsWith("audio/") && (
+              <div className="w-full max-w-[280px] rounded-xl border border-gray-300 bg-white shadow-sm px-2 py-1">
+                <audio
+                  src={attachment.url}
+                  controls
+                  className="w-full h-9"
+                />
+              </div>
             )}
             {/* Show file name for non-previewable files */}
             {attachment?.mimeType?.startsWith('application/') && (

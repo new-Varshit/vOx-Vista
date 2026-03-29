@@ -29,6 +29,10 @@ const userSchema = new Schema({
             type: String,
             default:'offline'
         }
+    },
+    isBot: {
+        type: Boolean,
+        default: false
     }
 
 },{timestamps:true}

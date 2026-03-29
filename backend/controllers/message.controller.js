@@ -3,10 +3,13 @@ import { ChatRoom } from '../model/chatRoom.model.js';
 import cloudinary from '../utils/cloudinary.js';
 import getDataUri from '../utils/dataUri.js';
 import { io } from "../index.js";
+import mongoose from "mongoose";
+import { getToxicityMaxScore } from "../utils/toxicity.js";
 // saving a message in the database 
 
 export const sendMessage = async (req, res) => {
   const { content, chatRoomId } = req.body;
+  const force = req.body.force === true || req.body.force === "true";
   const senderId = req.id.userId;
 
   //  console.log('printing : ',content,chatRoomId);
@@ -51,6 +54,35 @@ export const sendMessage = async (req, res) => {
   }
 
   try {
+    let flaggedForModeration = false;
+    const textToModerate = (content || "").trim();
+
+    if (textToModerate) {
+      const chatRoomMeta = await ChatRoom.findById(chatRoomId).select(
+        "isGroupChat moderationEnabled"
+      );
+      if (chatRoomMeta?.isGroupChat && chatRoomMeta?.moderationEnabled) {
+        const score = await getToxicityMaxScore(textToModerate);
+        if (score > 0.85) {
+          return res.status(400).json({
+            success: false,
+            blocked: true,
+            error: "Message blocked: inappropriate content",
+          });
+        }
+        if (score >= 0.6 && score <= 0.85 && !force) {
+          return res.status(200).json({
+            success: false,
+            warn: true,
+            message: "Message may be inappropriate",
+          });
+        }
+        if (score >= 0.6 && score <= 0.85 && force) {
+          flaggedForModeration = true;
+        }
+      }
+    }
+
     const message = await Message.create({
       content,
       sender: senderId,
@@ -58,6 +90,7 @@ export const sendMessage = async (req, res) => {
       attachments,
       deliveredTo: [],
       readBy: [],
+      flagged: flaggedForModeration,
     });
 
     let chatRoom = await ChatRoom.findById(chatRoomId).populate("members");
@@ -116,21 +149,58 @@ export const sendMessage = async (req, res) => {
 
 export const getMessagesByChatRoom = async (req, res) => {
   const { chatRoomId } = req.params;
+  const userId = req.id.userId;
+  const limit = Math.min(Math.max(Number(req.query.limit) || 30, 1), 50);
+  const beforeId = req.query.beforeId;
+  const beforeAt = req.query.beforeAt;
 
   try {
-    const messages = await Message.find({ chatRoom: chatRoomId }).populate('sender');
+    const base = {
+      chatRoom: chatRoomId,
+      deletedFor: { $ne: userId },
+    };
+
+    const query = { ...base };
+    if (beforeId && beforeAt) {
+      const cursorDate = new Date(beforeAt);
+      if (!Number.isNaN(cursorDate.getTime())) {
+        query.$or = [
+          { createdAt: { $lt: cursorDate } },
+          { createdAt: cursorDate, _id: { $lt: beforeId } },
+        ];
+      }
+    }
+
+    const raw = await Message.find(query)
+      .sort({ createdAt: -1, _id: -1 })
+      .limit(limit + 1)
+      .populate("sender")
+      .lean();
+
+    const hasMoreOlder = raw.length > limit;
+    const slice = hasMoreOlder ? raw.slice(0, limit) : raw;
+    const messages = slice.reverse();
+
+    const oldest = messages[0];
+    const nextOlderCursor =
+      hasMoreOlder && oldest
+        ? { beforeId: String(oldest._id), beforeAt: oldest.createdAt }
+        : null;
+
     return res.status(200).json({
       success: true,
-      messages
-    })
+      messages,
+      hasMoreOlder,
+      nextOlderCursor,
+    });
   } catch (err) {
     return res.status(500).json({
       success: false,
-      message: 'Failed to retrieve messages',
-      err
+      message: "Failed to retrieve messages",
+      err,
     });
   }
-}
+};
 
 
 // // updating message status to delivered 
@@ -243,7 +313,7 @@ export const deleteSelectedMsgs = async (req, res) => {
   }
 
   // Validate IDs (convert to ObjectId if needed)
-  const mongoose = require('mongoose');
+  // const mongoose = require('mongoose');
   const ObjectId = mongoose.Types.ObjectId;
   const validIds = selectedMsgs
     .map(id => {

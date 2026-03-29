@@ -1,7 +1,6 @@
 import React from 'react'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faLanguage } from '@fortawesome/free-solid-svg-icons';
-import axios from 'axios';
 import { useState, useEffect, useRef } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { setTargetLanguage } from '../store/lngSlice';
@@ -71,6 +70,18 @@ function Translation() {
                         <p className='font-bold text-base py-3 border-b-2 border-gray-300 bg-gray-100 text-center sticky top-0'>
                             Select Language
                         </p>
+                        {targetLanguage && (
+                            <button
+                                type='button'
+                                className='w-full text-left px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 border-b border-gray-200'
+                                onClick={() => {
+                                    dispatch(setTargetLanguage(null));
+                                    setLngMenu(false);
+                                }}
+                            >
+                                Disable real-time translation
+                            </button>
+                        )}
                         <div className='overflow-y-auto py-1 scrollbar-thin scrollbar-thumb-gray-400 scrollbar-track-gray-100'>
                             {
                                 languages.map(([code, language], index) => (
@@ -90,7 +101,7 @@ function Translation() {
 
             {/* Language Icon Button */}
             <button 
-                onClick={targetLanguage ? () => dispatch(setTargetLanguage(null)) : () => setLngMenu(!lngMenu)}
+                onClick={() => setLngMenu(!lngMenu)}
                 className='flex items-center justify-center'
                 type='button'
             >

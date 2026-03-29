@@ -42,6 +42,10 @@ const chatRoomSchema = new mongoose.Schema({
     groupIcon:{
         type:String,
         required:false
+    },
+    moderationEnabled: {
+        type: Boolean,
+        default: false
     }
     
 }, { timestamps: true });

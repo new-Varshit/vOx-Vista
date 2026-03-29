@@ -3,6 +3,7 @@ import { Message } from "../model/message.model.js";
 import cloudinary from '../utils/cloudinary.js';
 import getDataUri from '../utils/dataUri.js';
 import { io } from "../index.js";
+import { ensureAiAssistantRoomForUser } from "../utils/ensureAiAssistant.js";
 
 const SYSTEM_USER_ID = "000000000000000000000000"; // any valid ObjectId-like string
 
@@ -155,6 +156,23 @@ export const getAllChatRooms = async (req, res) => {
                 new Date(b.lastMessage?.createdAt || 0) -
                 new Date(a.lastMessage?.createdAt || 0)
         );
+
+        try {
+            const { chatRoom: aiRoom } = await ensureAiAssistantRoomForUser(userId);
+            const aiId = String(aiRoom._id);
+            const existingIdx = chatRooms.findIndex((c) => String(c._id) === aiId);
+            if (existingIdx === -1) {
+                chatRooms.unshift(aiRoom);
+            } else {
+                chatRooms[existingIdx] = {
+                    ...chatRooms[existingIdx],
+                    ...aiRoom,
+                    receiver: aiRoom.receiver,
+                };
+            }
+        } catch (aiErr) {
+            console.error("ensureAiAssistantRoomForUser:", aiErr);
+        }
 
         return res.status(200).json({
             success: true,
@@ -628,5 +646,44 @@ export const deleteGrp = async (req, res) => {
             success: false,
             message: "Server error",
         });
+    }
+};
+
+export const setGroupModeration = async (req, res) => {
+    const userId = req.id.userId;
+    const { chatRoomId, moderationEnabled } = req.body;
+
+    if (typeof moderationEnabled !== "boolean") {
+        return res.status(400).json({
+            success: false,
+            message: "moderationEnabled (boolean) is required",
+        });
+    }
+
+    try {
+        const room = await ChatRoom.findById(chatRoomId);
+        if (!room || !room.isGroupChat) {
+            return res.status(404).json({ success: false, message: "Group not found" });
+        }
+        if (String(room.admin) !== String(userId)) {
+            return res.status(403).json({
+                success: false,
+                message: "Only the group admin can change this setting",
+            });
+        }
+
+        await ChatRoom.findByIdAndUpdate(chatRoomId, { moderationEnabled });
+        const updatedGroup = await ChatRoom.findById(chatRoomId)
+            .populate("members")
+            .populate("lastMessage");
+
+        updatedGroup.members.forEach((mem) => {
+            io.to(mem._id.toString()).emit("grpInfoEdited", { updatedGroup });
+        });
+
+        return res.status(200).json({ success: true, moderationEnabled });
+    } catch (err) {
+        console.log(err);
+        return res.status(500).json({ success: false, message: "Server error" });
     }
 };

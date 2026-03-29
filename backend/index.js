@@ -11,6 +11,7 @@ import messageRoutes from './routes/message.route.js'
 import authRoutes from './routes/auth.route.js';
 import translateRoutes from './routes/translate.route.js';
 import chatRoomRoutes from './routes/chatRoom.route.js';
+import aiRoutes from './routes/ai.route.js';
 import { auth } from './middlewares/auth.middleware.js';
 import { Message } from './model/message.model.js';
 import { ChatRoom } from './model/chatRoom.model.js';
@@ -73,9 +74,28 @@ app.use('/api/auth', authRoutes);
 app.use('/api/chatRoom', auth, chatRoomRoutes);
 app.use('/api/message', auth, messageRoutes);
 app.use('/api/translate', auth, translateRoutes);
+app.use('/api/ai', auth, aiRoutes);
 
 io.on('connection', async (socket) => {
     const userId = socket.userId;
+    const isUserInChatRoom = async (chatRoomId, targetUserId = userId) => {
+        if (!chatRoomId || !targetUserId) return false;
+        const ok = await ChatRoom.exists({ _id: chatRoomId, members: targetUserId });
+        return Boolean(ok);
+    };
+
+    const getCallTargets = async (chatRoomId, explicitTargetUserId) => {
+        const chatRoom = await ChatRoom.findOne({ _id: chatRoomId, members: userId }).select("members");
+        if (!chatRoom) return [];
+        const members = (chatRoom.members || []).map((id) => id.toString());
+        if (explicitTargetUserId) {
+            const target = explicitTargetUserId.toString();
+            if (!members.includes(target) || target === userId.toString()) return [];
+            return [target];
+        }
+        return members.filter((id) => id !== userId.toString());
+    };
+
     socket.join(userId);
     console.log('user connected to the personal room');
     onlineUsers.add(userId);
@@ -193,6 +213,116 @@ io.on('connection', async (socket) => {
 
     socket.on("leaveRoom", (chatRoomId) => {
         socket.leave(chatRoomId);
+    });
+
+    socket.on("call:initiate", async ({ chatRoomId, callType, toUserId }) => {
+        try {
+            const isMember = await isUserInChatRoom(chatRoomId);
+            if (!isMember) return;
+            if (!["audio", "video"].includes(callType)) return;
+
+            const targets = await getCallTargets(chatRoomId, toUserId);
+            targets.forEach((targetId) => {
+                io.to(targetId).emit("call:incoming", {
+                    chatRoomId,
+                    callType,
+                    fromUserId: userId
+                });
+            });
+        } catch (err) {
+            console.log("call:initiate error", err);
+        }
+    });
+
+    socket.on("call:accept", async ({ chatRoomId, toUserId, callType }) => {
+        try {
+            const isMember = await isUserInChatRoom(chatRoomId);
+            const canReachTarget = await isUserInChatRoom(chatRoomId, toUserId);
+            if (!isMember || !canReachTarget) return;
+            io.to(toUserId).emit("call:accepted", {
+                chatRoomId,
+                callType,
+                fromUserId: userId
+            });
+        } catch (err) {
+            console.log("call:accept error", err);
+        }
+    });
+
+    socket.on("call:decline", async ({ chatRoomId, toUserId }) => {
+        try {
+            const isMember = await isUserInChatRoom(chatRoomId);
+            const canReachTarget = await isUserInChatRoom(chatRoomId, toUserId);
+            if (!isMember || !canReachTarget) return;
+            io.to(toUserId).emit("call:declined", {
+                chatRoomId,
+                fromUserId: userId
+            });
+        } catch (err) {
+            console.log("call:decline error", err);
+        }
+    });
+
+    socket.on("call:offer", async ({ chatRoomId, toUserId, sdp, callType }) => {
+        try {
+            const isMember = await isUserInChatRoom(chatRoomId);
+            const canReachTarget = await isUserInChatRoom(chatRoomId, toUserId);
+            if (!isMember || !canReachTarget || !sdp) return;
+            io.to(toUserId).emit("call:offer", {
+                chatRoomId,
+                callType,
+                fromUserId: userId,
+                sdp
+            });
+        } catch (err) {
+            console.log("call:offer error", err);
+        }
+    });
+
+    socket.on("call:answer", async ({ chatRoomId, toUserId, sdp }) => {
+        try {
+            const isMember = await isUserInChatRoom(chatRoomId);
+            const canReachTarget = await isUserInChatRoom(chatRoomId, toUserId);
+            if (!isMember || !canReachTarget || !sdp) return;
+            io.to(toUserId).emit("call:answer", {
+                chatRoomId,
+                fromUserId: userId,
+                sdp
+            });
+        } catch (err) {
+            console.log("call:answer error", err);
+        }
+    });
+
+    socket.on("call:ice-candidate", async ({ chatRoomId, toUserId, candidate }) => {
+        try {
+            const isMember = await isUserInChatRoom(chatRoomId);
+            const canReachTarget = await isUserInChatRoom(chatRoomId, toUserId);
+            if (!isMember || !canReachTarget || !candidate) return;
+            io.to(toUserId).emit("call:ice-candidate", {
+                chatRoomId,
+                fromUserId: userId,
+                candidate
+            });
+        } catch (err) {
+            console.log("call:ice-candidate error", err);
+        }
+    });
+
+    socket.on("call:end", async ({ chatRoomId, toUserId }) => {
+        try {
+            const isMember = await isUserInChatRoom(chatRoomId);
+            if (!isMember) return;
+            const targets = await getCallTargets(chatRoomId, toUserId);
+            targets.forEach((targetId) => {
+                io.to(targetId).emit("call:ended", {
+                    chatRoomId,
+                    fromUserId: userId
+                });
+            });
+        } catch (err) {
+            console.log("call:end error", err);
+        }
     });
 
     socket.on('disconnect', () => {

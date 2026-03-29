@@ -1,10 +1,11 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { io } from "socket.io-client";
 
 export default function useChatSocket({
     userId
 }) {
     const socketRef = useRef(null);
+    const [socket, setSocket] = useState(null);
 
     useEffect(() => {
         if (!userId) return;
@@ -15,6 +16,7 @@ export default function useChatSocket({
                 auth: { token },
                 withCredentials: true
             });
+            setSocket(socketRef.current);
         }
 
 
@@ -22,6 +24,7 @@ export default function useChatSocket({
             if (socketRef.current) {
                 socketRef.current.disconnect();
                 socketRef.current = null;
+                setSocket(null);
             }
         };
     }, [userId]);
@@ -48,6 +51,7 @@ export default function useChatSocket({
 
     return {
         socketRef,
+        socket,
         emitTyping,
         emitStopTyping,
         emitDelivered,

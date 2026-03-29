@@ -58,6 +58,10 @@ const messageSchema = new mongoose.Schema({
       }
     },
   ],
+  flagged: {
+    type: Boolean,
+    default: false
+  },
 
 
 }, { timestamps: true });
