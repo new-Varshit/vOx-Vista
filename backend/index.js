@@ -334,9 +334,15 @@ io.on('connection', async (socket) => {
 });
 
 
-httpServer.listen(port, () => {
-    connectDB();
-    console.log(`Server running at port ${port}`);
-});
+connectDB()
+    .then(() => {
+        httpServer.listen(port, () => {
+            console.log(`Server running at port ${port}`);
+        });
+    })
+    .catch((err) => {
+        console.error('Failed to start server:', err.message);
+        process.exit(1);
+    });
 
 export { io };

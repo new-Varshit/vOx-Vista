@@ -2,11 +2,24 @@ import axios from 'axios';
 
 export const translateMsg = async (req, res) => {
     const { message, targetLanguage } = req.body
-   
 
     const subscriptionKey = process.env.TRANSLATOR_SUBSCRIPTION_KEY;
     const endpoint = process.env.TRANSLATOR_ENDPOINT;
     const region = process.env.TRANSLATOR_REGION;
+
+    if (!message || !targetLanguage) {
+        return res.status(400).json({
+            success: false,
+            message: "message and targetLanguage are required"
+        });
+    }
+
+    if (!subscriptionKey || !endpoint || !region) {
+        return res.status(503).json({
+            success: false,
+            message: "Translation service is not configured on the server"
+        });
+    }
 
     try {
         const response = await axios({
@@ -27,10 +40,10 @@ export const translateMsg = async (req, res) => {
 
 
         if (!translatedText) {
-            res.status(400).json({
+            return res.status(400).json({
                 success: false,
                 message: 'fail to translate the message'
-            })
+            });
         }
 
         const translatedMessage = {
@@ -44,14 +57,21 @@ export const translateMsg = async (req, res) => {
             translatedMessage
         });
     } catch (error) {
-        console.error("Translation error:", error);
-        res.status(500).json({ error: "Translation failed" });
+        console.error("Translation error:", error?.response?.data || error.message);
+        return res.status(500).json({ success: false, error: "Translation failed" });
     }
 }
 
 
 
 export const getTranslateLangs = async (req, res) => {
+    if (!process.env.LANGUAGE_TRANSLATOR_URL || !process.env.LANGUAGE_SUBSCRIPTION_KEY) {
+        return res.status(503).json({
+            success: false,
+            message: "Language list service is not configured on the server"
+        });
+    }
+
     try {
 
         const response = await axios.get(process.env.LANGUAGE_TRANSLATOR_URL, {
@@ -69,5 +89,9 @@ export const getTranslateLangs = async (req, res) => {
 
     } catch (error) {
         console.error('Error fetching languages:', error);
+        return res.status(500).json({
+            success: false,
+            message: 'Failed to fetch available languages'
+        });
     }
 }
