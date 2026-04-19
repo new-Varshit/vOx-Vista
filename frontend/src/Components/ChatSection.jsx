@@ -176,6 +176,8 @@ function ChatSection({
   const remoteAudioRef = useRef(null);
   const localStreamRef = useRef(null);
   const speechRecognitionRef = useRef(null);
+  const shouldRunRecognitionRef = useRef(false);
+  const recognitionRestartTimerRef = useRef(null);
   // const socket = useRef(null);
 
 
@@ -675,6 +677,11 @@ function ChatSection({
       !callState.chatRoomId ||
       !callState.peerUserId
     ) {
+      shouldRunRecognitionRef.current = false;
+      if (recognitionRestartTimerRef.current) {
+        clearTimeout(recognitionRestartTimerRef.current);
+        recognitionRestartTimerRef.current = null;
+      }
       if (speechRecognitionRef.current) {
         speechRecognitionRef.current.stop();
         speechRecognitionRef.current = null;
@@ -686,6 +693,7 @@ function ChatSection({
     }
 
     const recognition = new Recognition();
+    shouldRunRecognitionRef.current = true;
     recognition.continuous = true;
     recognition.interimResults = false;
     recognition.lang = captionPrefs.speechLang || "en-US";
@@ -714,32 +722,35 @@ function ChatSection({
     };
 
     recognition.onerror = (event) => {
-  const code = event?.error || "unknown";
-  console.error("SpeechRecognition error:", code, event);
-
-  if (code === "not-allowed" || code === "service-not-allowed") {
-    setCaptionStatus("Captions blocked: microphone/speech permission denied.");
-    return;
-  }
-
-  if (code === "audio-capture") {
-    setCaptionStatus("Captions unavailable: microphone input could not be captured.");
-    return;
-  }
-
-  setCaptionStatus(`Captions error: ${code}`);
-};
+      const code = event?.error || "unknown";
+      if (code === "aborted") {
+        return;
+      }
+      console.error("SpeechRecognition error:", code, event);
+      if (code === "not-allowed" || code === "service-not-allowed") {
+        setCaptionStatus("Captions blocked: microphone/speech permission denied.");
+        return;
+      }
+      if (code === "audio-capture") {
+        setCaptionStatus("Captions unavailable: microphone input could not be captured.");
+        return;
+      }
+      setCaptionStatus(`Captions error: ${code}`);
+    };
     recognition.onend = () => {
       if (
+        shouldRunRecognitionRef.current &&
         speechRecognitionRef.current &&
         callState.phase === "active" &&
         captionPrefs.enabled
       ) {
-        try {
-          speechRecognitionRef.current.start();
-        } catch {
-          /* no-op */
-        }
+        recognitionRestartTimerRef.current = setTimeout(() => {
+          try {
+            speechRecognitionRef.current?.start();
+          } catch {
+            /* no-op */
+          }
+        }, 300);
       }
     };
 
@@ -753,6 +764,11 @@ function ChatSection({
     }
 
     return () => {
+      shouldRunRecognitionRef.current = false;
+      if (recognitionRestartTimerRef.current) {
+        clearTimeout(recognitionRestartTimerRef.current);
+        recognitionRestartTimerRef.current = null;
+      }
       recognition.onresult = null;
       recognition.onerror = null;
       recognition.onend = null;
