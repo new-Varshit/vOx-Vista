@@ -141,6 +141,14 @@ function ChatSection({
     peerUserId: null,
     chatRoomId: null
   });
+  const [captionPrefs, setCaptionPrefs] = useState({
+    enabled: true,
+    showOriginal: true,
+    translateTo: targetLanguage || "en",
+    speechLang: "en-US",
+  });
+  const [showCaptionSettings, setShowCaptionSettings] = useState(false);
+  const [callCaptions, setCallCaptions] = useState([]);
   const [localStream, setLocalStream] = useState(null);
   const [remoteStream, setRemoteStream] = useState(null);
   const [aiChatMessages, setAiChatMessages] = useState([]);
@@ -166,6 +174,7 @@ function ChatSection({
   const localAudioRef = useRef(null);
   const remoteAudioRef = useRef(null);
   const localStreamRef = useRef(null);
+  const speechRecognitionRef = useRef(null);
   // const socket = useRef(null);
 
 
@@ -190,9 +199,18 @@ function ChatSection({
     pendingCandidatesRef.current = [];
     incomingCallRef.current = null;
     stopStreamTracks(localStreamRef.current);
+    if (speechRecognitionRef.current) {
+      speechRecognitionRef.current.onresult = null;
+      speechRecognitionRef.current.onerror = null;
+      speechRecognitionRef.current.onend = null;
+      speechRecognitionRef.current.stop();
+      speechRecognitionRef.current = null;
+    }
     setLocalStream(null);
     localStreamRef.current = null;
     setRemoteStream(null);
+    setCallCaptions([]);
+    setShowCaptionSettings(false);
     setCallState({ phase: "idle", callType: null, peerUserId: null, chatRoomId: null });
   };
 
@@ -315,6 +333,35 @@ function ChatSection({
     if (!registerCallHandlers) return;
     registerCallHandlers({ startCall, endCall });
   }, [registerCallHandlers, startCall, endCall]);
+
+  const upsertCaption = useCallback((captionEntry) => {
+    setCallCaptions((prev) => {
+      const updated = [...prev, captionEntry].slice(-6);
+      return updated;
+    });
+  }, []);
+
+  const maybeTranslateCaption = useCallback(
+    async (text) => {
+      if (!captionPrefs.enabled || !captionPrefs.translateTo || !text?.trim()) {
+        return text;
+      }
+      try {
+        const response = await api.post(
+          "/api/translate/translateMsg",
+          {
+            targetLanguage: captionPrefs.translateTo,
+            message: { content: text },
+          },
+          { withCredentials: true }
+        );
+        return response?.data?.success ? response.data.translatedMessage.content : text;
+      } catch {
+        return text;
+      }
+    },
+    [captionPrefs.enabled, captionPrefs.translateTo]
+  );
 
 
 
@@ -548,6 +595,21 @@ function ChatSection({
       cleanupCallState();
     };
 
+    const onCallCaption = async ({ chatRoomId, fromUserId, caption }) => {
+      if (!captionPrefs.enabled) return;
+      if (!caption?.text?.trim()) return;
+      if (String(chatRoomId) !== String(callState.chatRoomId)) return;
+
+      const translated = await maybeTranslateCaption(caption.text);
+      upsertCaption({
+        id: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
+        fromUserId,
+        original: caption.text,
+        translated,
+        at: caption.at || Date.now(),
+      });
+    };
+
     socketInstance.on("call:incoming", onIncomingCall);
     socketInstance.on("call:accepted", onCallAccepted);
     socketInstance.on("call:declined", onCallDeclined);
@@ -555,6 +617,7 @@ function ChatSection({
     socketInstance.on("call:answer", onCallAnswer);
     socketInstance.on("call:ice-candidate", onCallIce);
     socketInstance.on("call:ended", onCallEnded);
+    socketInstance.on("call:caption", onCallCaption);
 
     return () => {
       socketInstance.off("call:incoming", onIncomingCall);
@@ -564,8 +627,9 @@ function ChatSection({
       socketInstance.off("call:answer", onCallAnswer);
       socketInstance.off("call:ice-candidate", onCallIce);
       socketInstance.off("call:ended", onCallEnded);
+      socketInstance.off("call:caption", onCallCaption);
     };
-  }, [socket]);
+  }, [socket, callState.chatRoomId, captionPrefs.enabled, maybeTranslateCaption, upsertCaption]);
 
 
 
@@ -580,6 +644,11 @@ function ChatSection({
     targetLanguageRef.current = targetLanguage;
   }, [targetLanguage]);
 
+  useEffect(() => {
+    if (!targetLanguage) return;
+    setCaptionPrefs((prev) => ({ ...prev, translateTo: targetLanguage }));
+  }, [targetLanguage]);
+
 
   useEffect(() => {
     if (!currentChatRoom) return;
@@ -590,6 +659,86 @@ function ChatSection({
       socketRef.current?.emit("leaveRoom", currentChatRoom._id);
     };
   }, [currentChatRoom]);
+
+  useEffect(() => {
+    const socketInstance = socket || socketRef.current;
+    const Recognition =
+      window.SpeechRecognition || window.webkitSpeechRecognition || null;
+
+    if (
+      !Recognition ||
+      !socketInstance ||
+      callState.phase !== "active" ||
+      !captionPrefs.enabled ||
+      !callState.chatRoomId ||
+      !callState.peerUserId
+    ) {
+      if (speechRecognitionRef.current) {
+        speechRecognitionRef.current.stop();
+        speechRecognitionRef.current = null;
+      }
+      return;
+    }
+
+    const recognition = new Recognition();
+    recognition.continuous = true;
+    recognition.interimResults = false;
+    recognition.lang = captionPrefs.speechLang || "en-US";
+
+    recognition.onresult = (event) => {
+      const result = event.results[event.results.length - 1];
+      const text = result?.[0]?.transcript?.trim();
+      if (!text) return;
+      socketInstance.emit("call:caption", {
+        chatRoomId: callState.chatRoomId,
+        toUserId: callState.peerUserId,
+        caption: {
+          text,
+          isFinal: true,
+          at: Date.now(),
+        },
+      });
+    };
+
+    recognition.onerror = () => {};
+    recognition.onend = () => {
+      if (
+        speechRecognitionRef.current &&
+        callState.phase === "active" &&
+        captionPrefs.enabled
+      ) {
+        try {
+          speechRecognitionRef.current.start();
+        } catch {
+          /* no-op */
+        }
+      }
+    };
+
+    speechRecognitionRef.current = recognition;
+    try {
+      recognition.start();
+    } catch {
+      speechRecognitionRef.current = null;
+    }
+
+    return () => {
+      recognition.onresult = null;
+      recognition.onerror = null;
+      recognition.onend = null;
+      recognition.stop();
+      if (speechRecognitionRef.current === recognition) {
+        speechRecognitionRef.current = null;
+      }
+    };
+  }, [
+    socket,
+    callState.phase,
+    callState.chatRoomId,
+    callState.peerUserId,
+    captionPrefs.enabled,
+    captionPrefs.speechLang,
+  ]);
 
   useEffect(() => {
     return () => {
@@ -1272,14 +1421,77 @@ function ChatSection({
                 {callState.phase === "outgoing" && `Calling (${callState.callType})...`}
                 {callState.phase === "active" && `${callState.callType === "video" ? "Video" : "Voice"} call in progress`}
               </p>
-              <button
-                type="button"
-                className="px-3 py-1 rounded-md bg-red-600 hover:bg-red-700"
-                onClick={endCall}
-              >
-                End
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  className="px-3 py-1 rounded-md bg-gray-700 hover:bg-gray-600 text-sm"
+                  onClick={() => setShowCaptionSettings((prev) => !prev)}
+                >
+                  Captions
+                </button>
+                <button
+                  type="button"
+                  className="px-3 py-1 rounded-md bg-red-600 hover:bg-red-700"
+                  onClick={endCall}
+                >
+                  End
+                </button>
+              </div>
             </div>
+
+            {showCaptionSettings && (
+              <div className="rounded-lg border border-gray-700 bg-black/30 p-3 grid grid-cols-1 md:grid-cols-4 gap-3">
+                <label className="text-sm flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    checked={captionPrefs.enabled}
+                    onChange={(e) =>
+                      setCaptionPrefs((prev) => ({ ...prev, enabled: e.target.checked }))
+                    }
+                  />
+                  Enable captions
+                </label>
+                <label className="text-sm flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    checked={captionPrefs.showOriginal}
+                    onChange={(e) =>
+                      setCaptionPrefs((prev) => ({ ...prev, showOriginal: e.target.checked }))
+                    }
+                  />
+                  Show original
+                </label>
+                <label className="text-sm flex flex-col gap-1">
+                  Translate to
+                  <select
+                    value={captionPrefs.translateTo}
+                    onChange={(e) =>
+                      setCaptionPrefs((prev) => ({ ...prev, translateTo: e.target.value }))
+                    }
+                    className="bg-gray-800 rounded px-2 py-1"
+                  >
+                    <option value="en">English</option>
+                    <option value="hi">Hindi</option>
+                    <option value="es">Spanish</option>
+                    <option value="fr">French</option>
+                    <option value="de">German</option>
+                  </select>
+                </label>
+                <label className="text-sm flex flex-col gap-1">
+                  Speech input language
+                  <select
+                    value={captionPrefs.speechLang}
+                    onChange={(e) =>
+                      setCaptionPrefs((prev) => ({ ...prev, speechLang: e.target.value }))
+                    }
+                    className="bg-gray-800 rounded px-2 py-1"
+                  >
+                    <option value="en-US">English (US)</option>
+                    <option value="hi-IN">Hindi (India)</option>
+                  </select>
+                </label>
+              </div>
+            )}
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               <div className="rounded-lg bg-black/40 min-h-[180px] overflow-hidden p-2">
@@ -1307,6 +1519,25 @@ function ChatSection({
                 )}
               </div>
             </div>
+
+            {captionPrefs.enabled && (
+              <div className="rounded-lg bg-black/50 border border-gray-700 p-3 min-h-[84px] max-h-40 overflow-y-auto">
+                {callCaptions.length === 0 ? (
+                  <p className="text-xs text-gray-300">Live captions will appear here during the call.</p>
+                ) : (
+                  <div className="flex flex-col gap-2">
+                    {callCaptions.map((item) => (
+                      <div key={item.id} className="text-sm">
+                        <p className="text-white">{item.translated}</p>
+                        {captionPrefs.showOriginal && item.original !== item.translated && (
+                          <p className="text-gray-300 text-xs">{item.original}</p>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
 
             {callState.phase === "incoming" && (
               <div className="flex gap-3 justify-end">
