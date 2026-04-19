@@ -4,6 +4,7 @@ import { User } from "../model/user.model.js";
 
 function geminiApiKey() {
   const key = process.env.GEMINI_API_KEY;
+  console.log(key);
   if (!key) {
     throw new Error("GEMINI_API_KEY is not set");
   }
@@ -12,6 +13,7 @@ function geminiApiKey() {
 
 /** Gemini Flash is low-cost and fast for summarization/assistant chat; override via GEMINI_MODEL. */
 function modelId() {
+   console.log('Model name:', process.env.GEMINI_MODEL);
   return process.env.GEMINI_MODEL || "gemini-2.0-flash";
 }
 
