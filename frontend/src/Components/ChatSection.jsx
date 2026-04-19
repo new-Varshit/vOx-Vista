@@ -714,18 +714,21 @@ function ChatSection({
     };
 
     recognition.onerror = (event) => {
-      const code = event?.error || "unknown";
-      console.error("SpeechRecognition error:", code, event);
-      if (code === "not-allowed" || code === "service-not-allowed") {
-        setCaptionStatus("Captions blocked: microphone/speech permission denied.");
-        return;
-      }
-      if (code === "audio-capture") {
-        setCaptionStatus("Captions unavailable: microphone input could not be captured.");
-        return;
-      }
-      setCaptionStatus(`Captions error: ${code}`);
-    };
+  const code = event?.error || "unknown";
+  console.error("SpeechRecognition error:", code, event);
+
+  if (code === "not-allowed" || code === "service-not-allowed") {
+    setCaptionStatus("Captions blocked: microphone/speech permission denied.");
+    return;
+  }
+
+  if (code === "audio-capture") {
+    setCaptionStatus("Captions unavailable: microphone input could not be captured.");
+    return;
+  }
+
+  setCaptionStatus(`Captions error: ${code}`);
+};
     recognition.onend = () => {
       if (
         speechRecognitionRef.current &&
