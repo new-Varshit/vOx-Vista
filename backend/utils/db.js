@@ -1,12 +1,13 @@
 import mongoose from 'mongoose'
 
 const connectDB = async () => {
-    try {
-        await mongoose.connect(process.env.MONGO_URI);
-        console.log('Database connected');
-    } catch (err) {
-        console.log(err);
+    const mongoUri = process.env.MONGO_URI;
+    if (!mongoUri) {
+        throw new Error('MONGO_URI is missing. Add it to backend/.env before starting the server.');
     }
+
+    await mongoose.connect(mongoUri);
+    console.log('Database connected');
 }
 
 export default connectDB;

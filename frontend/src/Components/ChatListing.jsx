@@ -6,7 +6,7 @@ import { setCurrentChatRoom } from '../store/chatRoomSlice';
 // import userId from '../utils/UserId';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import api from '../utils/Api';
-import { faSearch, faArrowRight, faPlus , faCommentDots, faThumbtack, faBroom} from '@fortawesome/free-solid-svg-icons';
+import { faSearch, faArrowRight, faPlus , faCommentDots, faThumbtack, faBroom, faTrash} from '@fortawesome/free-solid-svg-icons';
 
 // import userId from '../utils/UserId';
 import ChatListSkeleton from './ChatListSkeleton';
