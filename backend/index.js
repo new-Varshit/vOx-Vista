@@ -325,6 +325,44 @@ io.on('connection', async (socket) => {
         }
     });
 
+    socket.on("call:caption", async ({ chatRoomId, toUserId, caption }) => {
+        try {
+            const isMember = await isUserInChatRoom(chatRoomId);
+            if (!isMember) return;
+            if (!caption?.text?.trim()) return;
+
+            if (toUserId) {
+                const canReachTarget = await isUserInChatRoom(chatRoomId, toUserId);
+                if (!canReachTarget) return;
+                io.to(toUserId).emit("call:caption", {
+                    chatRoomId,
+                    fromUserId: userId,
+                    caption: {
+                        text: caption.text.trim(),
+                        isFinal: Boolean(caption.isFinal),
+                        at: caption.at || Date.now(),
+                    },
+                });
+                return;
+            }
+
+            const targets = await getCallTargets(chatRoomId);
+            targets.forEach((targetId) => {
+                io.to(targetId).emit("call:caption", {
+                    chatRoomId,
+                    fromUserId: userId,
+                    caption: {
+                        text: caption.text.trim(),
+                        isFinal: Boolean(caption.isFinal),
+                        at: caption.at || Date.now(),
+                    },
+                });
+            });
+        } catch (err) {
+            console.log("call:caption error", err);
+        }
+    });
+
     socket.on('disconnect', () => {
         onlineUsers.delete(userId);
         io.emit('update-online-status', Array.from(onlineUsers));
@@ -334,9 +372,15 @@ io.on('connection', async (socket) => {
 });
 
 
-httpServer.listen(port, () => {
-    connectDB();
-    console.log(`Server running at port ${port}`);
-});
+connectDB()
+    .then(() => {
+        httpServer.listen(port, () => {
+            console.log(`Server running at port ${port}`);
+        });
+    })
+    .catch((err) => {
+        console.error('Failed to start server:', err.message);
+        process.exit(1);
+    });
 
 export { io };
