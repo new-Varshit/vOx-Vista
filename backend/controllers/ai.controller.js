@@ -14,7 +14,7 @@ function geminiApiKey() {
 /** Gemini Flash is low-cost and fast for summarization/assistant chat; override via GEMINI_MODEL. */
 function modelId() {
    console.log('Model name:', process.env.GEMINI_MODEL);
-  return process.env.GEMINI_MODEL || "gemini-1.5-flash";
+  return process.env.GEMINI_MODEL || "gemini-2.0-flash";
 }
 
 function extractGeminiText(data) {

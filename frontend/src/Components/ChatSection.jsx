@@ -149,6 +149,7 @@ function ChatSection({
   });
   const [showCaptionSettings, setShowCaptionSettings] = useState(false);
   const [callCaptions, setCallCaptions] = useState([]);
+  const [captionStatus, setCaptionStatus] = useState("");
   const [localStream, setLocalStream] = useState(null);
   const [remoteStream, setRemoteStream] = useState(null);
   const [aiChatMessages, setAiChatMessages] = useState([]);
@@ -210,6 +211,7 @@ function ChatSection({
     localStreamRef.current = null;
     setRemoteStream(null);
     setCallCaptions([]);
+    setCaptionStatus("");
     setShowCaptionSettings(false);
     setCallState({ phase: "idle", callType: null, peerUserId: null, chatRoomId: null });
   };
@@ -677,6 +679,9 @@ function ChatSection({
         speechRecognitionRef.current.stop();
         speechRecognitionRef.current = null;
       }
+      if (!Recognition && captionPrefs.enabled && callState.phase === "active") {
+        setCaptionStatus("Captions unavailable: this browser does not support SpeechRecognition.");
+      }
       return;
     }
 
@@ -689,6 +694,14 @@ function ChatSection({
       const result = event.results[event.results.length - 1];
       const text = result?.[0]?.transcript?.trim();
       if (!text) return;
+      setCaptionStatus("Captions active");
+      upsertCaption({
+        id: `local-${Date.now()}-${Math.random().toString(16).slice(2)}`,
+        fromUserId: userId,
+        original: text,
+        translated: text,
+        at: Date.now(),
+      });
       socketInstance.emit("call:caption", {
         chatRoomId: callState.chatRoomId,
         toUserId: callState.peerUserId,
@@ -700,7 +713,22 @@ function ChatSection({
       });
     };
 
-    recognition.onerror = () => {};
+    recognition.onerror = (event) => {
+  const code = event?.error || "unknown";
+  console.error("SpeechRecognition error:", code, event);
+
+  if (code === "not-allowed" || code === "service-not-allowed") {
+    setCaptionStatus("Captions blocked: microphone/speech permission denied.");
+    return;
+  }
+
+  if (code === "audio-capture") {
+    setCaptionStatus("Captions unavailable: microphone input could not be captured.");
+    return;
+  }
+
+  setCaptionStatus(`Captions error: ${code}`);
+};
     recognition.onend = () => {
       if (
         speechRecognitionRef.current &&
@@ -718,7 +746,9 @@ function ChatSection({
     speechRecognitionRef.current = recognition;
     try {
       recognition.start();
+      setCaptionStatus("Starting captions...");
     } catch {
+      setCaptionStatus("Could not start captions.");
       speechRecognitionRef.current = null;
     }
 
@@ -738,6 +768,8 @@ function ChatSection({
     callState.peerUserId,
     captionPrefs.enabled,
     captionPrefs.speechLang,
+    upsertCaption,
+    userId,
   ]);
 
   useEffect(() => {
@@ -1522,6 +1554,9 @@ function ChatSection({
 
             {captionPrefs.enabled && (
               <div className="rounded-lg bg-black/50 border border-gray-700 p-3 min-h-[84px] max-h-40 overflow-y-auto">
+                {captionStatus && (
+                  <p className="text-[11px] text-yellow-300 mb-1">{captionStatus}</p>
+                )}
                 {callCaptions.length === 0 ? (
                   <p className="text-xs text-gray-300">Live captions will appear here during the call.</p>
                 ) : (
