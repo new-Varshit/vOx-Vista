@@ -4,7 +4,7 @@ import cloudinary from '../utils/cloudinary.js';
 import getDataUri from '../utils/dataUri.js';
 import { io } from "../index.js";
 import mongoose from "mongoose";
-import { getToxicityMaxScore } from "../utils/toxicity.js";
+import { getToxicityMaxScore, isToxicityConfigured } from "../utils/toxicity.js";
 // saving a message in the database 
 
 export const sendMessage = async (req, res) => {
@@ -62,6 +62,12 @@ export const sendMessage = async (req, res) => {
         "isGroupChat moderationEnabled"
       );
       if (chatRoomMeta?.isGroupChat && chatRoomMeta?.moderationEnabled) {
+        if (!isToxicityConfigured()) {
+          return res.status(503).json({
+            success: false,
+            message: "Toxicity filter is enabled but not configured on server",
+          });
+        }
         const score = await getToxicityMaxScore(textToModerate);
         if (score > 0.85) {
           return res.status(400).json({
@@ -215,6 +221,10 @@ export const updateMsgToDelivered = async (req, res) => {
     });
   } catch (err) {
     console.log(err);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to update message to delivered",
+    });
   }
 }
 
@@ -280,6 +290,10 @@ export const updateMsgToRead = async (req, res) => {
 
   } catch (err) {
     console.log(err);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to update message to read",
+    });
   }
 }
 

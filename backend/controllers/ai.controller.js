@@ -1,19 +1,58 @@
-import Anthropic from "@anthropic-ai/sdk";
 import { Message } from "../model/message.model.js";
 import { ChatRoom } from "../model/chatRoom.model.js";
 import { User } from "../model/user.model.js";
 
-function anthropicClient() {
-  const key = process.env.ANTHROPIC_API_KEY;
+function geminiApiKey() {
+  const key = process.env.GEMINI_API_KEY;
   if (!key) {
-    throw new Error("ANTHROPIC_API_KEY is not set");
+    throw new Error("GEMINI_API_KEY is not set");
   }
-  return new Anthropic({ apiKey: key });
+  return key;
 }
 
-/** Summarization: Claude 3.5 Haiku — fast, cheap vs larger Claude, strong enough for chat digests; override via ANTHROPIC_MODEL. */
+/** Gemini Flash is low-cost and fast for summarization/assistant chat; override via GEMINI_MODEL. */
 function modelId() {
-  return process.env.ANTHROPIC_MODEL || "claude-3-5-haiku-20241022";
+  return process.env.GEMINI_MODEL || "gemini-2.0-flash";
+}
+
+function extractGeminiText(data) {
+  const parts =
+    data?.candidates?.[0]?.content?.parts?.filter((p) => typeof p?.text === "string") || [];
+  return parts.map((p) => p.text).join("").trim();
+}
+
+async function callGemini({ systemInstruction, messages }) {
+  const key = geminiApiKey();
+  const model = modelId();
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(
+    key
+  )}`;
+
+  const body = {
+    contents: messages,
+  };
+
+  if (systemInstruction?.trim()) {
+    body.systemInstruction = {
+      role: "system",
+      parts: [{ text: systemInstruction.trim() }],
+    };
+  }
+
+  const resp = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+
+  const data = await resp.json().catch(() => ({}));
+  if (!resp.ok) {
+    const providerMessage =
+      data?.error?.message || `Gemini request failed with status ${resp.status}`;
+    throw new Error(providerMessage);
+  }
+
+  return extractGeminiText(data);
 }
 
 export const summarizeConversation = async (req, res) => {
@@ -69,20 +108,18 @@ export const summarizeConversation = async (req, res) => {
     });
     const transcript = lines.join("\n");
 
-    const client = anthropicClient();
-    const resp = await client.messages.create({
-      model: modelId(),
-      max_tokens: 1024,
+    const summary = await callGemini({
       messages: [
         {
           role: "user",
-          content: `Summarize the following chat conversation clearly and concisely in English. Use short paragraphs or bullet points where helpful. Focus on main topics, decisions, and open questions.\n\n---\n${transcript}\n---`,
+          parts: [
+            {
+              text: `Summarize the following chat conversation clearly and concisely in English. Use short paragraphs or bullet points where helpful. Focus on main topics, decisions, and open questions.\n\n---\n${transcript}\n---`,
+            },
+          ],
         },
       ],
     });
-
-    const block = resp.content?.find((b) => b.type === "text");
-    const summary = block?.type === "text" ? block.text : "";
 
     if (!summary?.trim()) {
       return res.status(500).json({ success: false, message: "Empty summary from model" });
@@ -106,14 +143,14 @@ export const streamAssistantChat = async (req, res) => {
     return res.status(400).json({ success: false, message: "messages array required" });
   }
 
-  const anthropicMsgs = clientMessages
+  const geminiMessages = clientMessages
     .filter((m) => m && (m.role === "user" || m.role === "assistant") && m.content?.trim())
     .map((m) => ({
-      role: m.role,
-      content: m.content.trim(),
+      role: m.role === "assistant" ? "model" : "user",
+      parts: [{ text: m.content.trim() }],
     }));
 
-  if (anthropicMsgs.length === 0) {
+  if (geminiMessages.length === 0) {
     return res.status(400).json({ success: false, message: "No valid messages" });
   }
 
@@ -127,23 +164,21 @@ export const streamAssistantChat = async (req, res) => {
   };
 
   try {
-    const client = anthropicClient();
-    const stream = await client.messages.stream({
-      model: modelId(),
-      max_tokens: 2048,
-      system:
+    const fullText = await callGemini({
+      systemInstruction:
         "You are a friendly, helpful AI assistant in a chat app. Be concise unless the user asks for detail. Do not claim access to other chats or private data.",
-      messages: anthropicMsgs,
+      messages: geminiMessages,
     });
 
-    for await (const event of stream) {
-      if (
-        event.type === "content_block_delta" &&
-        event.delta?.type === "text_delta" &&
-        event.delta.text
-      ) {
-        send({ type: "token", text: event.delta.text });
-      }
+    if (!fullText) {
+      send({ type: "error", message: "Empty response from model" });
+      res.end();
+      return;
+    }
+
+    const chunks = fullText.match(/.{1,80}(\s+|$)/g) || [fullText];
+    for (const chunk of chunks) {
+      send({ type: "token", text: chunk });
     }
 
     send({ type: "done" });

@@ -89,12 +89,30 @@ TRANSLATOR_REGION=your_azure_region
 LANGUAGE_SUBSCRIPTION_KEY=your_language_detection_key
 LANGUAGE_TRANSLATOR_URL=your_language_detection_url
 CLIENT_ORIGIN=http://localhost:5173
+TOXICITY_URL=http://127.0.0.1:8001/score
+GEMINI_API_KEY=your_gemini_api_key
+GEMINI_MODEL=gemini-2.0-flash
 ```
 
 Start the backend server:
 ```bash
 npm run dev
 ```
+
+### Optional: Run Local Toxicity Service (Free)
+If you want toxicity moderation without paid inference APIs, run the included local service:
+
+```bash
+cd backend/moderation-service
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+uvicorn app:app --host 127.0.0.1 --port 8001
+```
+
+This serves:
+- `GET /health` for service health checks
+- `POST /score` for toxicity scores (English + Hindi/Hinglish)
 
 ### 3. Frontend Setup
 ```bash
