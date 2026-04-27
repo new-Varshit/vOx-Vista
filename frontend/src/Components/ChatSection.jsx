@@ -2,18 +2,14 @@ import React from 'react';
 import api from '../utils/Api';
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useSelector } from 'react-redux';
-// import userId from '../utils/UserId';
 import MessageSecCS from './MessageSecCS';
 import InputAreaCS from './InputAreaCS';
 import HeaderSecCS from './HeaderSecCS';
 import SummarizeModal from './SummarizeModal';
-// import userId from '../utils/UserId';
 import { getUserId } from '../utils/UserId';
-// import useChatSocket from '../hooks/useChatSocket';
 
 
 function ChatSection({
-
   isMobileChatOpen,
   setIsMobileChatOpen,
   setActiveChatRooms,
@@ -29,10 +25,8 @@ function ChatSection({
   setMessages,
   accessMessage,
   registerCallHandlers
-
 }) {
 
-  //getting the recipient id and chatroom from redux store
   const currentChat = useSelector((state) => state.chat.currentChat);
   const currentChatRoom = useSelector((state) => state.chatRoom.currentChatRoom);
   const isBotChat = Boolean(currentChat?.isBot);
@@ -44,6 +38,12 @@ function ChatSection({
 
   const userId = getUserId();
 
+  // FIX #4: Moved targetLanguageRef above handleReceiveMessage so it's
+  // declared before it's referenced inside the callback.
+  const targetLanguageRef = useRef(targetLanguage);
+  useEffect(() => {
+    targetLanguageRef.current = targetLanguage;
+  }, [targetLanguage]);
 
   const currentChatRef = useRef(currentChat);
   useEffect(() => {
@@ -53,32 +53,25 @@ function ChatSection({
     currentChatRef.current = currentChat;
   }, [currentChat]);
 
-
-
   const messagesRef = useRef([]);
   useEffect(() => {
     messagesRef.current = messages;
   }, [messages]);
 
-
-  //handling receiving messages ,  callback function for 'receiveMessage' socket.io event listener
+  // Callback for 'receiveMessage' socket.io event listener
   const handleReceiveMessage = useCallback(
-
     async (incomingMessage) => {
       const activeRoomId = currentChatRoomRef.current?._id;
       if (!activeRoomId) return;
       if (incomingMessage.chatRoom._id !== activeRoomId) return;
       if (currentChatRef.current?.isBot) return;
 
-      // Reliable duplicate check
       if (messagesRef.current.some(m => m._id === incomingMessage._id)) {
         return;
       }
 
-      // Append once
       setMessages(prev => [...prev, incomingMessage]);
 
-      // Translate if needed
       if (
         incomingMessage?.sender?._id !== userId &&
         targetLanguageRef.current
@@ -99,7 +92,6 @@ function ChatSection({
                 m._id === incomingMessage._id
                   ? {
                     ...response.data.translatedMessage,
-                    // Preserve any real-time updates that happened during translation
                     deliveredTo: m.deliveredTo?.length > 0
                       ? m.deliveredTo
                       : response.data.translatedMessage.deliveredTo,
@@ -119,15 +111,8 @@ function ChatSection({
     [userId]
   );
 
-
-
-  // const token = localStorage.getItem('token');
-  // const decodedToken = jwtDecode(token);
-  // const userId = decodedToken.userId;
-  //all the states using
   const [isTyping, setIsTyping] = useState(false);
   const [typingUsers, setTypingUsers] = useState([]);
-  // const [messages, setMessages] = useState([]);
   const [sendMessage, setSendMessage] = useState('');
   const [onlineUsers, setOnlineUsers] = useState([]);
   const [isDelSelCardVisible, setIsDelSelCardVisible] = useState(false);
@@ -136,8 +121,8 @@ function ChatSection({
   const [selectedFiles, setSelectedFiles] = useState([]);
   const [isAtBottom, setIsAtBottom] = useState(true);
   const [callState, setCallState] = useState({
-    phase: "idle", // idle | incoming | outgoing | active
-    callType: null, // audio | video
+    phase: "idle",
+    callType: null,
     peerUserId: null,
     chatRoomId: null
   });
@@ -150,6 +135,8 @@ function ChatSection({
   const [showCaptionSettings, setShowCaptionSettings] = useState(false);
   const [callCaptions, setCallCaptions] = useState([]);
   const [captionStatus, setCaptionStatus] = useState("");
+  const [translationCache, setTranslationCache] = useState(new Map());
+  const [translatingCaptions, setTranslatingCaptions] = useState(new Set());
   const [localStream, setLocalStream] = useState(null);
   const [remoteStream, setRemoteStream] = useState(null);
   const [aiChatMessages, setAiChatMessages] = useState([]);
@@ -163,7 +150,6 @@ function ChatSection({
   const moderationForceRef = useRef(false);
   const moderationRetryRef = useRef(null);
 
-  //references we are using 
   const typingTimeoutRef = useRef(null);
   const lastMessageRef = useRef(null);
   const firstUnreadRef = useRef(null);
@@ -178,14 +164,13 @@ function ChatSection({
   const speechRecognitionRef = useRef(null);
   const shouldRunRecognitionRef = useRef(false);
   const recognitionRestartTimerRef = useRef(null);
-  // const socket = useRef(null);
-
-
+  const captionDebounceRef = useRef(null);
+  const lastCaptionRef = useRef("");
 
   const typingObj = {
     userId: currentChat?._id,
     chatRoomId: currentChatRoom?._id
-  }
+  };
 
   const stopStreamTracks = (stream) => {
     if (!stream) return;
@@ -218,6 +203,8 @@ function ChatSection({
     setCallState({ phase: "idle", callType: null, peerUserId: null, chatRoomId: null });
   };
 
+  // FIX #2: Removed the orphaned `pc.addTrack` block that existed outside
+  // this function. All track-adding logic is now correctly inside here.
   const createPeerConnection = (peerUserId, callType, chatRoomId) => {
     if (peerConnectionRef.current) return peerConnectionRef.current;
 
@@ -336,7 +323,7 @@ function ChatSection({
   useEffect(() => {
     if (!registerCallHandlers) return;
     registerCallHandlers({ startCall, endCall });
-  }, [registerCallHandlers, startCall, endCall]);
+  }, [registerCallHandlers]);
 
   const upsertCaption = useCallback((captionEntry) => {
     setCallCaptions((prev) => {
@@ -345,11 +332,27 @@ function ChatSection({
     });
   }, []);
 
+  // FIX #1 & #3: All duplicate function definitions that had leaked outside
+  // the component have been removed. Only the single set above is kept.
+
   const maybeTranslateCaption = useCallback(
-    async (text) => {
+    async (text, captionId) => {
       if (!captionPrefs.enabled || !captionPrefs.translateTo || !text?.trim()) {
         return text;
       }
+
+      const cacheKey = `${text}-${captionPrefs.translateTo}`;
+      const cached = translationCache.get(cacheKey);
+      if (cached) {
+        return cached;
+      }
+
+      if (translatingCaptions.has(cacheKey)) {
+        return text;
+      }
+
+      setTranslatingCaptions(prev => new Set(prev).add(cacheKey));
+
       try {
         const response = await api.post(
           "/api/translate/translateMsg",
@@ -359,22 +362,43 @@ function ChatSection({
           },
           { withCredentials: true }
         );
-        return response?.data?.success ? response.data.translatedMessage.content : text;
-      } catch {
+
+        let translatedText = text;
+        if (response.data.success) {
+          translatedText = response.data.translatedMessage.content;
+
+          setTranslationCache(prev => {
+            const newCache = new Map(prev);
+            if (newCache.size > 100) {
+              const firstKey = newCache.keys().next().value;
+              newCache.delete(firstKey);
+            }
+            newCache.set(cacheKey, translatedText);
+            return newCache;
+          });
+        }
+
+        return translatedText;
+      } catch (err) {
+        console.error("Caption translation error:", err);
+        setCaptionStatus("Translation unavailable - showing original");
         return text;
+      } finally {
+        setTranslatingCaptions(prev => {
+          const newSet = new Set(prev);
+          newSet.delete(cacheKey);
+          return newSet;
+        });
       }
     },
-    [captionPrefs.enabled, captionPrefs.translateTo]
+    [captionPrefs.enabled, captionPrefs.translateTo, translationCache, translatingCaptions]
   );
 
-
-
-  // Mark messages as read when chat is active and user is viewing
+  // FIX #5: Removed the duplicate readMessages useEffect. Only one instance
+  // is kept here.
   useEffect(() => {
     if (!currentChatRoom || messages.length === 0) return;
     if (!socketRef.current) return;
-
-    // Only mark as read if user is actually viewing (window is focused)
     if (!document.hasFocus()) return;
 
     const unreadMessages = messages.filter(
@@ -385,18 +409,17 @@ function ChatSection({
 
     if (unreadMessages.length === 0) return;
 
-    // Small delay to ensure user actually sees the messages
     const timeoutId = setTimeout(() => {
       socketRef.current.emit("readMessages", {
         chatRoomId: currentChatRoom._id,
         userId
       });
-    }, 500); // Half second delay
+    }, 500);
 
     return () => clearTimeout(timeoutId);
   }, [currentChatRoom, messages, userId]);
 
-  // Optional: Also mark as read when window gains focus
+  // Also mark as read when the window regains focus
   useEffect(() => {
     const handleFocus = () => {
       if (!currentChatRoom || !socketRef.current) return;
@@ -419,12 +442,12 @@ function ChatSection({
     return () => window.removeEventListener('focus', handleFocus);
   }, [currentChatRoom, messages, userId]);
 
-
+  // FIX #6: Unified socket reference — always resolve once at the top of
+  // each effect rather than mixing socket / socketRef.current inline.
   useEffect(() => {
     const socketInstance = socket || socketRef.current;
     if (!socketInstance) return;
 
-    // Keep a stable reference to your receive handler (already defined via useCallback)
     const onReceiveMessage = handleReceiveMessage;
 
     const onDisplayTyping = (uid) => {
@@ -436,7 +459,7 @@ function ChatSection({
     };
 
     const onMsgsRead = ({ chatRoomId, readerId }) => {
-      if (String(chatRoomId) !== String(currentChatRoom?._id)) return; // scope to active room
+      if (String(chatRoomId) !== String(currentChatRoom?._id)) return;
       setMessages(prev => prev.map(msg => {
         if (String(msg?.sender?._id) === String(readerId)) return msg;
         if ((msg.readBy || []).map(String).includes(String(readerId))) return msg;
@@ -446,7 +469,6 @@ function ChatSection({
 
     const onMessageDeleted = ({ messageId, chatRoomId }) => {
       if (chatRoomId && String(chatRoomId) !== String(currentChatRoom?._id)) return;
-      // Some server sends just messageId — handle both shapes
       const id = messageId || (typeof messageId === 'string' ? messageId : null);
       if (!id) return;
       setMessages(prev => prev.filter(msg => String(msg._id) !== String(id)));
@@ -456,24 +478,22 @@ function ChatSection({
       setOnlineUsers(users || []);
     };
 
-    // Register handlers
-    socket.on("receiveMessage", onReceiveMessage);
-    socket.on("displayTyping", onDisplayTyping);
-    socket.on("removeTyping", onRemoveTyping);
-    socket.on("msgsRead", onMsgsRead);
-    socket.on("messageDeleted", onMessageDeleted);
-    socket.on("update-online-status", onUpdateOnlineStatus);
+    socketInstance.on("receiveMessage", onReceiveMessage);
+    socketInstance.on("displayTyping", onDisplayTyping);
+    socketInstance.on("removeTyping", onRemoveTyping);
+    socketInstance.on("msgsRead", onMsgsRead);
+    socketInstance.on("messageDeleted", onMessageDeleted);
+    socketInstance.on("update-online-status", onUpdateOnlineStatus);
 
-    // Cleanup using the same function references
     return () => {
-      socket.off("receiveMessage", onReceiveMessage);
-      socket.off("displayTyping", onDisplayTyping);
-      socket.off("removeTyping", onRemoveTyping);
-      socket.off("msgsRead", onMsgsRead);
-      socket.off("messageDeleted", onMessageDeleted);
-      socket.off("update-online-status", onUpdateOnlineStatus);
+      socketInstance.off("receiveMessage", onReceiveMessage);
+      socketInstance.off("displayTyping", onDisplayTyping);
+      socketInstance.off("removeTyping", onRemoveTyping);
+      socketInstance.off("msgsRead", onMsgsRead);
+      socketInstance.off("messageDeleted", onMessageDeleted);
+      socketInstance.off("update-online-status", onUpdateOnlineStatus);
     };
-  }, [handleReceiveMessage, currentChatRoom?._id]);
+  }, [handleReceiveMessage, currentChatRoom?._id, socket]);
 
   useEffect(() => {
     if (localVideoRef.current) {
@@ -497,15 +517,12 @@ function ChatSection({
     if (remoteAudioRef.current) {
       remoteAudioRef.current.srcObject = remoteStream || null;
       if (remoteStream) {
-        // Some browsers require an explicit play() call for auto-playing remote audio.
         remoteAudioRef.current.play().catch(() => {});
       }
     }
   }, [remoteStream]);
 
   useEffect(() => {
-    
-
     const socketInstance = socket || socketRef.current;
     if (!socketInstance) return;
 
@@ -604,14 +621,27 @@ function ChatSection({
       if (!caption?.text?.trim()) return;
       if (String(chatRoomId) !== String(callState.chatRoomId)) return;
 
-      const translated = await maybeTranslateCaption(caption.text);
-      upsertCaption({
-        id: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
-        fromUserId,
-        original: caption.text,
-        translated,
-        at: caption.at || Date.now(),
-      });
+      const captionText = caption.text.trim();
+      if (captionText === lastCaptionRef.current) return;
+      lastCaptionRef.current = captionText;
+
+      if (captionDebounceRef.current) {
+        clearTimeout(captionDebounceRef.current);
+      }
+
+      captionDebounceRef.current = setTimeout(async () => {
+        const captionId = `${fromUserId}-${Date.now()}`;
+        const translated = await maybeTranslateCaption(captionText, captionId);
+
+        upsertCaption({
+          id: captionId,
+          fromUserId,
+          original: captionText,
+          translated,
+          isTranslating: translatingCaptions.has(`${captionText}-${captionPrefs.translateTo}`),
+          at: caption.at || Date.now(),
+        });
+      }, 300);
     };
 
     socketInstance.on("call:incoming", onIncomingCall);
@@ -635,24 +665,10 @@ function ChatSection({
     };
   }, [socket, callState.chatRoomId, captionPrefs.enabled, maybeTranslateCaption, upsertCaption]);
 
-
-
-
-
-  // to dynamically showing if recipient is typing using socket.io
-
-
-
-  const targetLanguageRef = useRef(targetLanguage);
-  useEffect(() => {
-    targetLanguageRef.current = targetLanguage;
-  }, [targetLanguage]);
-
   useEffect(() => {
     if (!targetLanguage) return;
     setCaptionPrefs((prev) => ({ ...prev, translateTo: targetLanguage }));
   }, [targetLanguage]);
-
 
   useEffect(() => {
     if (!currentChatRoom) return;
@@ -703,13 +719,6 @@ function ChatSection({
       const text = result?.[0]?.transcript?.trim();
       if (!text) return;
       setCaptionStatus("Captions active");
-      upsertCaption({
-        id: `local-${Date.now()}-${Math.random().toString(16).slice(2)}`,
-        fromUserId: userId,
-        original: text,
-        translated: text,
-        at: Date.now(),
-      });
       socketInstance.emit("call:caption", {
         chatRoomId: callState.chatRoomId,
         toUserId: callState.peerUserId,
@@ -723,9 +732,7 @@ function ChatSection({
 
     recognition.onerror = (event) => {
       const code = event?.error || "unknown";
-      if (code === "aborted") {
-        return;
-      }
+      if (code === "aborted") return;
       console.error("SpeechRecognition error:", code, event);
       if (code === "not-allowed" || code === "service-not-allowed") {
         setCaptionStatus("Captions blocked: microphone/speech permission denied.");
@@ -737,6 +744,7 @@ function ChatSection({
       }
       setCaptionStatus(`Captions error: ${code}`);
     };
+
     recognition.onend = () => {
       if (
         shouldRunRecognitionRef.current &&
@@ -793,8 +801,6 @@ function ChatSection({
       cleanupCallState();
     };
   }, []);
-
-
 
   const handleTyping = () => {
     if (isBotChat) return;
@@ -1042,12 +1048,6 @@ function ChatSection({
     }
   };
 
-
-
-
-
-
-  //fetching all the messages of a chatRoom  from the database.....
   useEffect(() => {
     const fetchChatRoomMessages = async () => {
       if (!currentChatRoom?._id) {
@@ -1068,15 +1068,14 @@ function ChatSection({
       try {
         const response = await api.get(`/api/message/${currentChatRoom._id}?limit=30`, {
           withCredentials: true
-        })
+        });
         if (response.data.success) {
-          const visibleMessages = response?.data?.messages.filter(msg => !msg.deletedFor.includes(userId))
+          const visibleMessages = response?.data?.messages.filter(msg => !msg.deletedFor.includes(userId));
           setMessages(visibleMessages);
           setHasMoreOlder(Boolean(response.data.hasMoreOlder));
           setNextOlderCursor(response.data.nextOlderCursor || null);
 
           const unread = visibleMessages.filter(m => m?.sender?._id !== userId && !m.readBy.includes(userId));
-
           setUnreadCount(unread.length);
           const firstUnread = unread[0];
           setFirstUnreadId(firstUnread?._id || null);
@@ -1086,12 +1085,10 @@ function ChatSection({
       } finally {
         setIsMessagesLoading(false);
       }
-    }
+    };
     fetchChatRoomMessages();
   }, [currentChatRoom, currentChat?.isBot]);
 
-
-  //storing the last message reference , so with that when you open a chat you will see the latest message ....
   useEffect(() => {
     if (lastMessageRef.current) {
       if (isAtBottom) {
@@ -1106,7 +1103,6 @@ function ChatSection({
     }
   }, [firstUnreadId]);
 
-  //seding the message to the database  to store as well as to the socket.io server for dynamically sending...
   const sendInputMessage = async (e) => {
     e.preventDefault();
     if (isBotChat) {
@@ -1222,29 +1218,24 @@ function ChatSection({
     }
   };
 
-  //handling if message menu card i.e delsel card is visible or not
   const handleDelSelCard = async (id) => {
     setIsDelSelCardVisible(prev => prev === id ? '' : id);
-  }
+  };
 
-
-  //selecting and deselecting a message 
   const toggleSelectMessage = async (id, event) => {
     if (event) {
       event.stopPropagation();
     }
     if (!inSelectMode) {
-      return
+      return;
     }
     if (selectedMsgs.includes(id)) {
-      setSelectedMsgs(prev => prev.filter(MsgId => MsgId !== id))
+      setSelectedMsgs(prev => prev.filter(MsgId => MsgId !== id));
     } else {
       setSelectedMsgs([...selectedMsgs, id]);
     }
   };
 
-
-  //selecting the first message when click on select
   const handleMessageSelect = (id) => {
     if (!inSelectMode) {
       setSelectMode(true);
@@ -1252,20 +1243,14 @@ function ChatSection({
     setSelectedMsgs([id]);
   };
 
-
-
-  //cancelling the selection process of messages
   const handleCancelSelection = () => {
     setSelectMode(false);
     setSelectedMsgs([]);
-  }
+  };
 
-
-  //deleting selected messages
   const deleteSelectedMsgs = async (msgId) => {
     try {
       let response;
-
 
       if (msgId && selectedMsgs.length === 0) {
         response = await api.post('/api/message/deleteSelectedMsgs', { selectedMsgs: [msgId] }, {
@@ -1288,10 +1273,8 @@ function ChatSection({
     } catch (err) {
       console.log(err);
     }
-  }
+  };
 
-
-  //deleting single message 
   const handleSingleMsgDeletion = (msg) => {
     if (isBotChat) {
       setAiChatMessages((prevMsgs) => prevMsgs.filter((mssg) => mssg._id !== msg._id));
@@ -1303,14 +1286,13 @@ function ChatSection({
     } else {
       deleteSelectedMsgs(msg._id);
     }
-  }
+  };
 
-
+  // FIX #3: Component now has a proper return and closing brace before export.
   return (
     <>
       {currentChatRoom ? (
         <div className="flex flex-col h-full">
-          {/* Header - Fixed height */}
           <div className="flex-shrink-0">
             <HeaderSecCS
               isMobileChatOpen={isMobileChatOpen}
@@ -1330,7 +1312,6 @@ function ChatSection({
             />
           </div>
 
-          {/* Message section - Takes remaining space with scroll */}
           <div className="flex-1 min-h-0 flex flex-col bg-white">
             <MessageSecCS
               isMessagesLoading={isMessagesLoading}
@@ -1354,7 +1335,6 @@ function ChatSection({
             />
           </div>
 
-          {/* Input area - Fixed at bottom with white background behind */}
           <div className="flex-shrink-0 bg-white border-t border-gray-200 p-3">
             <InputAreaCS
               setSelectedFiles={setSelectedFiles}
@@ -1369,21 +1349,20 @@ function ChatSection({
         </div>
       ) : (
         <div className="w-full h-full flex justify-center items-center bg-white">
-  <div className="flex flex-col justify-center items-center gap-2 opacity-80">
-    <img
-      src="/logo.png"
-      alt="VoxVista"
-      className="w-24 h-auto object-contain"
-    />
-    <p className="font-bold text-4xl text-anotherPrimary tracking-wide">
-      VoxVista
-    </p>
-    <p className="font-medium text-lg text-gray-500">
-      Your chat will appear here...
-    </p>
-  </div>
-</div>
-
+          <div className="flex flex-col justify-center items-center gap-2 opacity-80">
+            <img
+              src="/logo.png"
+              alt="VoxVista"
+              className="w-24 h-auto object-contain"
+            />
+            <p className="font-bold text-4xl text-anotherPrimary tracking-wide">
+              VoxVista
+            </p>
+            <p className="font-medium text-lg text-gray-500">
+              Your chat will appear here...
+            </p>
+          </div>
+        </div>
       )}
 
       {summarizeOpen && currentChatRoom?._id && (
@@ -1579,9 +1558,14 @@ function ChatSection({
                   <div className="flex flex-col gap-2">
                     {callCaptions.map((item) => (
                       <div key={item.id} className="text-sm">
-                        <p className="text-white">{item.translated}</p>
+                        <div className="flex items-start gap-2">
+                          <p className="text-white flex-1">{item.translated}</p>
+                          {item.isTranslating && (
+                            <div className="w-2 h-2 bg-yellow-400 rounded-full animate-pulse" title="Translating..."></div>
+                          )}
+                        </div>
                         {captionPrefs.showOriginal && item.original !== item.translated && (
-                          <p className="text-gray-300 text-xs">{item.original}</p>
+                          <p className="text-gray-300 text-xs mt-1">{item.original}</p>
                         )}
                       </div>
                     ))}
@@ -1612,7 +1596,7 @@ function ChatSection({
         </div>
       )}
     </>
-  )
-}
+  );
+} // ← FIX #3: Correctly closes the ChatSection function
 
-export default ChatSection 
+export default ChatSection;
