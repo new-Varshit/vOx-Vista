@@ -5,13 +5,16 @@ const HF_INFERENCE = "https://api-inference.huggingface.co/models";
 const ENGLISH_MODEL = "unitary/toxic-bert";
 const HINDI_HINGLISH_MODEL = "l3cube-pune/hindi-abusive-bert";
 const LOCAL_TOXICITY_URL = process.env.TOXICITY_URL;
+const BENIGN_SHORT_MESSAGE_RE = /^[\p{L}\p{N}\s.,!?'"-]{1,40}$/u;
+const TOXIC_HINT_RE =
+  /kill|die|stupid|idiot|abuse|hate|harass|slur|bastard|shit|fuck|gali|gaand|madarchod|bhenchod|chutiya|randi|kutta|kamina|harami|suar|murder|rape|terror|attack/i;
 
 /**
  * Single-sequence classification row: [{ label, score }, ...]
  * - Multi-label English toxicity (toxic-bert): many labels — use max score.
  * - Binary abusive / hate: take score for abusive/offensive class, not benign max.
  */
-function scoreFromClassificationRow(row) {
+function scoreFromClassificationRow(row, modelPath = "") {
   if (!Array.isArray(row) || row.length === 0) return 0;
 
   const labStr = (item) => String(item?.label ?? "").toLowerCase();
@@ -36,21 +39,30 @@ function scoreFromClassificationRow(row) {
     return Math.max(0, ...row.map((i) => (typeof i.score === "number" ? i.score : 0)));
   }
 
-  // Binary with generic LABEL_0 / LABEL_1 — often 1 = positive (abusive) class
-  if (row.length === 2) {
-    const pos = row.find((item) =>
-      /^label_1$|^1$|positive|pos|abusive|hate|class_1/i.test(String(item?.label ?? ""))
+  // Generic binary labels (LABEL_0/LABEL_1) are model-dependent and can map
+  // to "non-toxic" as the high score. Fail open here to avoid false positives
+  // like warning on simple messages (e.g., "hello").
+  if (row.length <= 3) {
+    const labels = row.map((item) => String(item?.label ?? "").toLowerCase());
+    const hasOnlyGenericBinaryLabels = labels.every((l) =>
+      /^label_[01]$|^[01]$|^class_[01]$/.test(l)
     );
-    if (pos && typeof pos.score === "number") return pos.score;
+    if (hasOnlyGenericBinaryLabels) {
+      console.warn(
+        `Skipping ambiguous toxicity labels from ${modelPath || "unknown model"}: ${labels.join(", ")}`
+      );
+      return 0;
+    }
   }
 
+  // For rich multi-class outputs where no benign label exists, max score is reasonable.
   return Math.max(0, ...row.map((i) => (typeof i.score === "number" ? i.score : 0)));
 }
 
 /**
  * Parses HF text-classification responses.
  */
-function maxScoreFromHFResponse(data) {
+function maxScoreFromHFResponse(data, modelPath = "") {
   if (!data || typeof data === "string") {
     return 0;
   }
@@ -59,7 +71,7 @@ function maxScoreFromHFResponse(data) {
   let max = 0;
   for (const row of rows) {
     if (!Array.isArray(row)) continue;
-    max = Math.max(max, scoreFromClassificationRow(row));
+    max = Math.max(max, scoreFromClassificationRow(row, modelPath));
   }
   return max;
 }
@@ -85,7 +97,7 @@ async function hfModelMaxScore(modelPath, text, token) {
     return 0;
   }
 
-  return maxScoreFromHFResponse(data);
+  return maxScoreFromHFResponse(data, modelPath);
 }
 
 export function isToxicityConfigured() {
@@ -123,6 +135,12 @@ export async function getToxicityMaxScore(text) {
   if (!text?.trim()) return 0;
 
   const input = text.trim().slice(0, 512);
+
+  // Guardrail against noisy model/service outputs:
+  // if text is short and has no obvious toxic cues, skip moderation scoring.
+  if (input.length <= 40 && BENIGN_SHORT_MESSAGE_RE.test(input) && !TOXIC_HINT_RE.test(input)) {
+    return 0;
+  }
 
   // Prefer local self-hosted service if configured
   if (LOCAL_TOXICITY_URL) {

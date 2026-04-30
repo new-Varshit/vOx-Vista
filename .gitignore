@@ -6,6 +6,10 @@ frontend/.env
 backend/node_modules/
 frontend/node_modules/
 
+# Python
+.venv/
+__pycache__/
+
 # Other common patterns to ignore
-# .DS_Store  # macOS
-# Thumbs.db  # Windows
+# .DS_Store
+# Thumbs.db

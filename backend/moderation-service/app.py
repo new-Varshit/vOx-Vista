@@ -12,7 +12,7 @@ english_classifier = pipeline(
 
 hinglish_classifier = pipeline(
     "text-classification",
-    model="l3cube-pune/hindi-abusive-bert",
+   model="cardiffnlp/twitter-roberta-base-offensive",
     top_k=None,
 )
 
